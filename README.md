@@ -12,6 +12,16 @@ Core loop:
 tavern -> heroes -> real-time auto expedition -> loot -> upgrades -> deeper floors -> prestige
 ```
 
+## Current prototype
+
+- Real-time automated combat
+- 2.5D top-view arena
+- localStorage save/load
+- Tavern upgrades
+- Hero training and hiring
+- Loot drops
+- Early prestige draft
+
 ## Tech stack
 
 - Vite
