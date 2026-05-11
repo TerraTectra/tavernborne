@@ -1,22 +1,55 @@
 import { useGLTF } from '@react-three/drei';
 import { SkeletonUtils } from 'three-stdlib';
-import React, { Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Box3, Group, Mesh, Object3D, Vector3 } from 'three';
+import type { AssetRenderReport, AssetRenderStatus, QuaterniusAssetId } from './quaterniusAssets';
+
+type ReportModelStatus = (report: AssetRenderReport) => void;
 
 type QuaterniusModelProps = {
+  id: QuaterniusAssetId;
   url: string | null;
   targetSize: number;
+  sourcePack?: string;
+  sourceFile?: string;
   fallback: React.ReactNode;
+  onReport: ReportModelStatus;
+};
+
+type NormalizedGltfModelProps = {
+  id: QuaterniusAssetId;
+  url: string;
+  targetSize: number;
+  sourcePack?: string;
+  sourceFile?: string;
+  onReport: ReportModelStatus;
 };
 
 type ModelErrorBoundaryProps = {
+  id: QuaterniusAssetId;
+  url: string | null;
+  sourcePack?: string;
+  sourceFile?: string;
   fallback: React.ReactNode;
+  onReport: ReportModelStatus;
   children: React.ReactNode;
 };
 
 type ModelErrorBoundaryState = {
   failed: boolean;
 };
+
+function reportStatus(
+  onReport: ReportModelStatus,
+  id: QuaterniusAssetId,
+  status: AssetRenderStatus,
+  url: string | null,
+  sourcePack?: string,
+  sourceFile?: string,
+  error?: string,
+) {
+  onReport({ id, status, url, sourcePack, sourceFile, error });
+}
 
 class ModelErrorBoundary extends React.Component<ModelErrorBoundaryProps, ModelErrorBoundaryState> {
   state: ModelErrorBoundaryState = { failed: false };
@@ -26,13 +59,47 @@ class ModelErrorBoundary extends React.Component<ModelErrorBoundaryProps, ModelE
   }
 
   componentDidCatch(error: unknown) {
-    console.warn('[quaternius] Model failed, using fallback:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('[quaternius] Model failed, using fallback:', this.props.id, message);
+    reportStatus(this.props.onReport, this.props.id, 'failed', this.props.url, this.props.sourcePack, this.props.sourceFile, message);
+  }
+
+  componentDidUpdate(previousProps: ModelErrorBoundaryProps) {
+    if (previousProps.url !== this.props.url && this.state.failed) {
+      this.setState({ failed: false });
+    }
   }
 
   render() {
     if (this.state.failed) return this.props.fallback;
     return this.props.children;
   }
+}
+
+function ModelFallbackReporter({
+  id,
+  status,
+  url,
+  sourcePack,
+  sourceFile,
+  error,
+  onReport,
+  fallback,
+}: {
+  id: QuaterniusAssetId;
+  status: AssetRenderStatus;
+  url: string | null;
+  sourcePack?: string;
+  sourceFile?: string;
+  error?: string;
+  onReport: ReportModelStatus;
+  fallback: React.ReactNode;
+}) {
+  useEffect(() => {
+    reportStatus(onReport, id, status, url, sourcePack, sourceFile, error);
+  }, [error, id, onReport, sourceFile, sourcePack, status, url]);
+
+  return <>{fallback}</>;
 }
 
 function prepareModel(root: Object3D) {
@@ -48,7 +115,7 @@ function prepareModel(root: Object3D) {
   });
 }
 
-function NormalizedGltfModel({ url, targetSize }: { url: string; targetSize: number }) {
+function NormalizedGltfModel({ id, url, targetSize, sourcePack, sourceFile, onReport }: NormalizedGltfModelProps) {
   const gltf = useGLTF(url);
   const wrapperRef = useRef<Group>(null);
   const modelRef = useRef<Group>(null);
@@ -72,11 +139,15 @@ function NormalizedGltfModel({ url, targetSize }: { url: string; targetSize: num
     box.getCenter(center);
 
     const maxDimension = Math.max(size.x, size.y, size.z);
-    if (maxDimension <= 0) return;
+    if (maxDimension <= 0) {
+      reportStatus(onReport, id, 'failed', url, sourcePack, sourceFile, 'Loaded model has zero visible bounds');
+      return;
+    }
 
     model.position.set(-center.x, -box.min.y, -center.z);
     setScale(targetSize / maxDimension);
-  }, [clonedScene, targetSize]);
+    reportStatus(onReport, id, 'rendered', url, sourcePack, sourceFile);
+  }, [clonedScene, id, onReport, sourceFile, sourcePack, targetSize, url]);
 
   return (
     <group ref={wrapperRef} scale={scale}>
@@ -87,13 +158,38 @@ function NormalizedGltfModel({ url, targetSize }: { url: string; targetSize: num
   );
 }
 
-export function QuaterniusModel({ url, targetSize, fallback }: QuaterniusModelProps) {
-  if (!url) return <>{fallback}</>;
+export function QuaterniusModel({ id, url, targetSize, sourcePack, sourceFile, fallback, onReport }: QuaterniusModelProps) {
+  if (!url) {
+    return (
+      <ModelFallbackReporter
+        id={id}
+        status="fallback"
+        url={null}
+        sourcePack={sourcePack}
+        sourceFile={sourceFile}
+        error="No approved model URL in manifest"
+        onReport={onReport}
+        fallback={fallback}
+      />
+    );
+  }
 
   return (
-    <ModelErrorBoundary fallback={fallback}>
-      <Suspense fallback={fallback}>
-        <NormalizedGltfModel url={url} targetSize={targetSize} />
+    <ModelErrorBoundary id={id} url={url} sourcePack={sourcePack} sourceFile={sourceFile} fallback={fallback} onReport={onReport}>
+      <Suspense
+        fallback={
+          <ModelFallbackReporter
+            id={id}
+            status="loading"
+            url={url}
+            sourcePack={sourcePack}
+            sourceFile={sourceFile}
+            onReport={onReport}
+            fallback={fallback}
+          />
+        }
+      >
+        <NormalizedGltfModel id={id} url={url} targetSize={targetSize} sourcePack={sourcePack} sourceFile={sourceFile} onReport={onReport} />
       </Suspense>
     </ModelErrorBoundary>
   );
