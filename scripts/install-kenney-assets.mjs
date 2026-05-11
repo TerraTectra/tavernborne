@@ -69,7 +69,7 @@ async function main() {
     const targetName = aliases[index];
     const target = path.join(outputDir, targetName);
     await copyFile(source, target);
-    manifest.push({ name: targetName, source: path.relative(projectRoot, source).replaceAll('\\\\', '/') });
+    manifest.push({ name: targetName, source: path.relative(projectRoot, source).replaceAll('\\', '/') });
   }
 
   await writeFile(
