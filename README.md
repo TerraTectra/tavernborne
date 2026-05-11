@@ -2,6 +2,22 @@
 
 Browser-first 2.5D idle dungeon auto-battler.
 
+## Web preview
+
+After the deploy PR is merged into `main`, the public GitHub Pages build should be available at:
+
+```text
+https://terratectra.github.io/tavernborne/
+```
+
+If the page is not live yet, open repository settings and set:
+
+```text
+Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+```
+
+See `docs/WEB_PREVIEW.md` for the exact checklist.
+
 ## Current direction
 
 Tavernborne is a spiritual successor to tavern-management and endless-expedition RPGs, without using protected names, assets, text, UI, or worldbuilding from other games.
@@ -20,6 +36,7 @@ tavern -> heroes -> real-time auto expedition -> loot -> upgrades -> deeper floo
 - Centered village camera
 - Y-depth sorting for clickable scene objects
 - Minimal in-world selection UI
+- GitHub Pages deployment workflow
 
 ## Tech stack
 
@@ -27,6 +44,7 @@ tavern -> heroes -> real-time auto expedition -> loot -> upgrades -> deeper floo
 - React
 - TypeScript
 - Tailwind CSS
+- GitHub Pages
 - Browser-first architecture
 - Later target: Windows `.exe` via Tauri
 
@@ -46,6 +64,17 @@ npm run assets:install
 ```
 
 ## Build
+
+```bash
+npm run build
+npm run preview
+```
+
+## Deploy
+
+GitHub Actions deploys the production build from `main` to GitHub Pages.
+
+Manual local production check:
 
 ```bash
 npm run build

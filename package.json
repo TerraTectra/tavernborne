@@ -3,12 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "homepage": "https://terratectra.github.io/tavernborne/",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "assets:install": "node scripts/install-kenney-assets.mjs",
+    "deploy:github-pages": "npm run assets:install && npm run build",
     "postinstall": "node scripts/install-kenney-assets.mjs"
   },
   "dependencies": {
