@@ -4,7 +4,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'public/assets/kenney-hex/scene'] },
+  { ignores: ['dist', 'public/assets/kenney-hex/scene', 'public/assets/quaternius'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -13,6 +13,7 @@ export default tseslint.config(
       ecmaVersion: 2022,
       globals: {
         document: 'readonly',
+        fetch: 'readonly',
         Image: 'readonly',
         localStorage: 'readonly',
         window: 'readonly',

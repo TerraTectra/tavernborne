@@ -6,11 +6,13 @@
   "homepage": "https://terratectra.github.io/tavernborne/",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run assets:install && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "assets:install": "node scripts/install-kenney-assets.mjs",
-    "deploy:github-pages": "npm run assets:install && npm run build",
+    "assets:install:legacy": "node scripts/install-kenney-assets.mjs",
+    "assets:install:quaternius": "node scripts/install-quaternius-assets.mjs",
+    "assets:install": "npm run assets:install:legacy && npm run assets:install:quaternius",
+    "deploy:github-pages": "npm run build",
     "postinstall": "node scripts/install-kenney-assets.mjs"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.16",
+    "extract-zip": "^2.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",

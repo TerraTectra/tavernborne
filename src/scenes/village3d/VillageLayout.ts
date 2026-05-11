@@ -13,6 +13,7 @@ export type VillageBuilding = {
   position: Vec3;
   rotationY: number;
   scale: number;
+  modelTargetSize: number;
   wallColor: string;
   roofColor: string;
   trimColor: string;
@@ -29,6 +30,7 @@ export const villageBuildings: VillageBuilding[] = [
     position: [-2.6, 0, -1.3],
     rotationY: 0.38,
     scale: 0.92,
+    modelTargetSize: 2.25,
     wallColor: '#6f5a42',
     roofColor: '#334f8a',
     trimColor: '#f1c76f',
@@ -43,6 +45,7 @@ export const villageBuildings: VillageBuilding[] = [
     position: [2.8, 0, -1.55],
     rotationY: -0.58,
     scale: 1,
+    modelTargetSize: 2.2,
     wallColor: '#343044',
     roofColor: '#4e326e',
     trimColor: '#b99cff',
@@ -57,6 +60,7 @@ export const villageBuildings: VillageBuilding[] = [
     position: [2.35, 0, 0.18],
     rotationY: -0.4,
     scale: 0.86,
+    modelTargetSize: 2.0,
     wallColor: '#67625b',
     roofColor: '#3b5879',
     trimColor: '#dfe7e8',
@@ -71,6 +75,7 @@ export const villageBuildings: VillageBuilding[] = [
     position: [-2.45, 0, 0.65],
     rotationY: 0.28,
     scale: 0.82,
+    modelTargetSize: 1.8,
     wallColor: '#7b4b2e',
     roofColor: '#d49b45',
     trimColor: '#f9d37a',
@@ -85,6 +90,7 @@ export const villageBuildings: VillageBuilding[] = [
     position: [0, 0, 0.35],
     rotationY: 0,
     scale: 1.24,
+    modelTargetSize: 3.0,
     wallColor: '#8a512d',
     roofColor: '#274463',
     trimColor: '#f3c46c',
@@ -99,6 +105,7 @@ export const villageBuildings: VillageBuilding[] = [
     position: [-1.75, 0, 2.15],
     rotationY: 0.25,
     scale: 0.74,
+    modelTargetSize: 1.4,
     wallColor: '#6e6a73',
     roofColor: '#4d5a8e',
     trimColor: '#8bd8ff',
@@ -113,6 +120,7 @@ export const villageBuildings: VillageBuilding[] = [
     position: [1.75, 0, 2.05],
     rotationY: -0.24,
     scale: 0.9,
+    modelTargetSize: 2.0,
     wallColor: '#6e3f25',
     roofColor: '#394e66',
     trimColor: '#ff9a4d',

@@ -1,4 +1,7 @@
 import type { ThreeEvent } from '@react-three/fiber';
+import { QuaterniusModel } from './QuaterniusModel';
+import type { QuaterniusManifest } from './quaterniusAssets';
+import { resolvePublicAssetPath } from './quaterniusAssets';
 import type { VillageBuilding, VillageBuildingId } from './VillageLayout';
 import { villagePalette } from './VillageMaterials';
 
@@ -6,6 +9,7 @@ type VillageBuildingsProps = {
   buildings: VillageBuilding[];
   selectedId: VillageBuildingId;
   hoveredId: VillageBuildingId | null;
+  manifest: QuaterniusManifest | null;
   onSelect: (id: VillageBuildingId) => void;
   onHover: (id: VillageBuildingId | null) => void;
 };
@@ -14,6 +18,7 @@ type BuildingModelProps = {
   building: VillageBuilding;
   selected: boolean;
   hovered: boolean;
+  manifest: QuaterniusManifest | null;
   onSelect: (id: VillageBuildingId) => void;
   onHover: (id: VillageBuildingId | null) => void;
 };
@@ -199,7 +204,7 @@ function ArmoryModel({ building, selected, hovered }: { building: VillageBuildin
   );
 }
 
-function BuildingShape({ building, selected, hovered }: { building: VillageBuilding; selected: boolean; hovered: boolean }) {
+function FallbackShape({ building, selected, hovered }: { building: VillageBuilding; selected: boolean; hovered: boolean }) {
   if (building.type === 'tavern') return <TavernModel building={building} selected={selected} hovered={hovered} />;
   if (building.type === 'forge') return <ForgeModel building={building} selected={selected} hovered={hovered} />;
   if (building.type === 'market') return <MarketModel building={building} />;
@@ -209,7 +214,21 @@ function BuildingShape({ building, selected, hovered }: { building: VillageBuild
   return <CoreHouse building={building} selected={selected} hovered={hovered} />;
 }
 
-function BuildingModel({ building, selected, hovered, onSelect, onHover }: BuildingModelProps) {
+function BuildingShape({ building, selected, hovered, manifest }: { building: VillageBuilding; selected: boolean; hovered: boolean; manifest: QuaterniusManifest | null }) {
+  const modelEntry = manifest?.models[building.id];
+  const modelUrl = resolvePublicAssetPath(modelEntry?.file);
+  const fallback = <FallbackShape building={building} selected={selected} hovered={hovered} />;
+
+  return (
+    <QuaterniusModel
+      url={modelUrl}
+      targetSize={modelEntry?.targetSize ?? building.modelTargetSize}
+      fallback={fallback}
+    />
+  );
+}
+
+function BuildingModel({ building, selected, hovered, manifest, onSelect, onHover }: BuildingModelProps) {
   const lift = selected ? 0.12 : hovered ? 0.06 : 0;
   const scale = building.scale * (selected ? 1.05 : hovered ? 1.025 : 1);
 
@@ -241,12 +260,12 @@ function BuildingModel({ building, selected, hovered, onSelect, onHover }: Build
         <circleGeometry args={[0.94, 32]} />
         <meshStandardMaterial color={selected ? '#f6c56b' : hovered ? '#b88946' : '#2a2118'} transparent opacity={selected || hovered ? 0.42 : 0.22} />
       </mesh>
-      <BuildingShape building={building} selected={selected} hovered={hovered} />
+      <BuildingShape building={building} selected={selected} hovered={hovered} manifest={manifest} />
     </group>
   );
 }
 
-export function VillageBuildings({ buildings, selectedId, hoveredId, onSelect, onHover }: VillageBuildingsProps) {
+export function VillageBuildings({ buildings, selectedId, hoveredId, manifest, onSelect, onHover }: VillageBuildingsProps) {
   return (
     <group>
       {buildings.map((building) => (
@@ -255,6 +274,7 @@ export function VillageBuildings({ buildings, selectedId, hoveredId, onSelect, o
           building={building}
           selected={selectedId === building.id}
           hovered={hoveredId === building.id}
+          manifest={manifest}
           onSelect={onSelect}
           onHover={onHover}
         />

@@ -1,15 +1,27 @@
+import { QuaterniusModel } from './QuaterniusModel';
+import type { QuaterniusManifest } from './quaterniusAssets';
+import { resolvePublicAssetPath } from './quaterniusAssets';
 import { villagePalette } from './VillageMaterials';
 
 type PropVec3 = [number, number, number];
 
-type BarrelProps = { position: PropVec3; scale?: number };
-type CrateProps = { position: PropVec3; scale?: number };
-type LampProps = { position: PropVec3; scale?: number };
-type TreeProps = { position: PropVec3; scale?: number };
+type VillagePropsProps = {
+  manifest: QuaterniusManifest | null;
+};
 
-function Barrel({ position, scale = 1 }: BarrelProps) {
+type BarrelProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
+type CrateProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
+type LampProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
+type TreeProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
+type RockProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
+
+function modelUrl(manifest: QuaterniusManifest | null, id: 'barrel' | 'crate' | 'lamp' | 'tree' | 'rock' | 'bush') {
+  return resolvePublicAssetPath(manifest?.models[id]?.file);
+}
+
+function BarrelFallback() {
   return (
-    <group position={position} scale={scale}>
+    <group>
       <mesh castShadow receiveShadow position={[0, 0.18, 0]}>
         <cylinderGeometry args={[0.16, 0.18, 0.36, 14]} />
         <meshStandardMaterial color="#8b4a24" roughness={0.8} />
@@ -22,9 +34,17 @@ function Barrel({ position, scale = 1 }: BarrelProps) {
   );
 }
 
-function Crate({ position, scale = 1 }: CrateProps) {
+function Barrel({ position, scale = 1, manifest }: BarrelProps) {
   return (
-    <group position={position} scale={scale} rotation={[0, 0.25, 0]}>
+    <group position={position} scale={scale}>
+      <QuaterniusModel url={modelUrl(manifest, 'barrel')} targetSize={0.75} fallback={<BarrelFallback />} />
+    </group>
+  );
+}
+
+function CrateFallback() {
+  return (
+    <group rotation={[0, 0.25, 0]}>
       <mesh castShadow receiveShadow position={[0, 0.17, 0]}>
         <boxGeometry args={[0.34, 0.34, 0.34]} />
         <meshStandardMaterial color="#6a3c21" roughness={0.92} />
@@ -37,9 +57,17 @@ function Crate({ position, scale = 1 }: CrateProps) {
   );
 }
 
-function Lamp({ position, scale = 1 }: LampProps) {
+function Crate({ position, scale = 1, manifest }: CrateProps) {
   return (
     <group position={position} scale={scale}>
+      <QuaterniusModel url={modelUrl(manifest, 'crate')} targetSize={0.7} fallback={<CrateFallback />} />
+    </group>
+  );
+}
+
+function LampFallback() {
+  return (
+    <group>
       <mesh castShadow position={[0, 0.42, 0]}>
         <cylinderGeometry args={[0.035, 0.045, 0.84, 8]} />
         <meshStandardMaterial color="#22160f" roughness={0.7} />
@@ -53,9 +81,18 @@ function Lamp({ position, scale = 1 }: LampProps) {
   );
 }
 
-function Tree({ position, scale = 1 }: TreeProps) {
+function Lamp({ position, scale = 1, manifest }: LampProps) {
   return (
     <group position={position} scale={scale}>
+      <QuaterniusModel url={modelUrl(manifest, 'lamp')} targetSize={0.8} fallback={<LampFallback />} />
+      <pointLight color="#ffbf57" intensity={3.5} distance={2.4} position={[0, 0.9, 0]} />
+    </group>
+  );
+}
+
+function TreeFallback() {
+  return (
+    <group>
       <mesh castShadow receiveShadow position={[0, 0.34, 0]}>
         <cylinderGeometry args={[0.08, 0.1, 0.68, 8]} />
         <meshStandardMaterial color="#4a2a17" roughness={0.85} />
@@ -68,6 +105,31 @@ function Tree({ position, scale = 1 }: TreeProps) {
         <coneGeometry args={[0.32, 0.64, 8]} />
         <meshStandardMaterial color="#2b7a48" roughness={0.78} />
       </mesh>
+    </group>
+  );
+}
+
+function Tree({ position, scale = 1, manifest }: TreeProps) {
+  return (
+    <group position={position} scale={scale}>
+      <QuaterniusModel url={modelUrl(manifest, 'tree')} targetSize={1.5} fallback={<TreeFallback />} />
+    </group>
+  );
+}
+
+function RockFallback() {
+  return (
+    <mesh castShadow receiveShadow position={[0, 0.07, 0]} rotation={[0, 0.22, 0]}>
+      <sphereGeometry args={[0.2, 12, 8]} />
+      <meshStandardMaterial color="#56595a" roughness={0.95} />
+    </mesh>
+  );
+}
+
+function Rock({ position, scale = 1, manifest }: RockProps) {
+  return (
+    <group position={position} scale={scale}>
+      <QuaterniusModel url={modelUrl(manifest, 'rock')} targetSize={0.9} fallback={<RockFallback />} />
     </group>
   );
 }
@@ -103,31 +165,25 @@ export function VillageGround() {
   );
 }
 
-export function VillageProps() {
+export function VillageProps({ manifest }: VillagePropsProps) {
   return (
     <group>
-      <Tree position={[-3.9, 0, -1.65]} scale={0.86} />
-      <Tree position={[-3.65, 0, 2.15]} scale={0.96} />
-      <Tree position={[3.8, 0, 1.62]} scale={1.02} />
-      <Tree position={[3.55, 0, -2.18]} scale={0.78} />
-      <Tree position={[0.65, 0, -2.55]} scale={0.62} />
-      <Crate position={[-1.25, 0, 1.22]} scale={0.82} />
-      <Crate position={[2.55, 0, 1.02]} scale={0.7} />
-      <Barrel position={[0.78, 0, 1.28]} scale={0.92} />
-      <Barrel position={[1.02, 0, 1.38]} scale={0.82} />
-      <Barrel position={[1.82, 0, 2.62]} scale={0.9} />
-      <Lamp position={[-1.05, 0, 0.92]} scale={0.88} />
-      <Lamp position={[1.18, 0, 0.78]} scale={0.88} />
-      <Lamp position={[-2.1, 0, -0.15]} scale={0.76} />
-      <Lamp position={[2.0, 0, -0.25]} scale={0.76} />
-      <mesh castShadow receiveShadow position={[-3.05, 0.06, 0.95]} rotation={[0, 0.22, 0]}>
-        <sphereGeometry args={[0.18, 12, 8]} />
-        <meshStandardMaterial color="#56595a" roughness={0.95} />
-      </mesh>
-      <mesh castShadow receiveShadow position={[3.22, 0.07, 0.55]} rotation={[0, 0.22, 0]}>
-        <sphereGeometry args={[0.2, 12, 8]} />
-        <meshStandardMaterial color="#4a4e50" roughness={0.95} />
-      </mesh>
+      <Tree position={[-3.9, 0, -1.65]} scale={0.86} manifest={manifest} />
+      <Tree position={[-3.65, 0, 2.15]} scale={0.96} manifest={manifest} />
+      <Tree position={[3.8, 0, 1.62]} scale={1.02} manifest={manifest} />
+      <Tree position={[3.55, 0, -2.18]} scale={0.78} manifest={manifest} />
+      <Tree position={[0.65, 0, -2.55]} scale={0.62} manifest={manifest} />
+      <Crate position={[-1.25, 0, 1.22]} scale={0.82} manifest={manifest} />
+      <Crate position={[2.55, 0, 1.02]} scale={0.7} manifest={manifest} />
+      <Barrel position={[0.78, 0, 1.28]} scale={0.92} manifest={manifest} />
+      <Barrel position={[1.02, 0, 1.38]} scale={0.82} manifest={manifest} />
+      <Barrel position={[1.82, 0, 2.62]} scale={0.9} manifest={manifest} />
+      <Lamp position={[-1.05, 0, 0.92]} scale={0.88} manifest={manifest} />
+      <Lamp position={[1.18, 0, 0.78]} scale={0.88} manifest={manifest} />
+      <Lamp position={[-2.1, 0, -0.15]} scale={0.76} manifest={manifest} />
+      <Lamp position={[2.0, 0, -0.25]} scale={0.76} manifest={manifest} />
+      <Rock position={[-3.05, 0, 0.95]} scale={1} manifest={manifest} />
+      <Rock position={[3.22, 0, 0.55]} scale={1} manifest={manifest} />
     </group>
   );
 }
