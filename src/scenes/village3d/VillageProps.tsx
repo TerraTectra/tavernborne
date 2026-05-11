@@ -1,5 +1,5 @@
 import { QuaterniusModel } from './QuaterniusModel';
-import type { QuaterniusManifest } from './quaterniusAssets';
+import type { AssetRenderReport, QuaterniusAssetId, QuaterniusManifest } from './quaterniusAssets';
 import { resolvePublicAssetPath } from './quaterniusAssets';
 import { villagePalette } from './VillageMaterials';
 
@@ -7,16 +7,24 @@ type PropVec3 = [number, number, number];
 
 type VillagePropsProps = {
   manifest: QuaterniusManifest | null;
+  onAssetReport: (report: AssetRenderReport) => void;
 };
 
-type BarrelProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
-type CrateProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
-type LampProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
-type TreeProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
-type RockProps = { position: PropVec3; scale?: number; manifest: QuaterniusManifest | null };
+type PropModelId = Extract<QuaterniusAssetId, 'barrel' | 'crate' | 'lamp' | 'tree' | 'rock' | 'bush'>;
 
-function modelUrl(manifest: QuaterniusManifest | null, id: 'barrel' | 'crate' | 'lamp' | 'tree' | 'rock' | 'bush') {
-  return resolvePublicAssetPath(manifest?.models[id]?.file);
+type PropBaseProps = {
+  position: PropVec3;
+  scale?: number;
+  manifest: QuaterniusManifest | null;
+  onAssetReport: (report: AssetRenderReport) => void;
+};
+
+function modelEntry(manifest: QuaterniusManifest | null, id: PropModelId) {
+  return manifest?.models[id];
+}
+
+function modelUrl(manifest: QuaterniusManifest | null, id: PropModelId) {
+  return resolvePublicAssetPath(modelEntry(manifest, id)?.file);
 }
 
 function BarrelFallback() {
@@ -34,10 +42,25 @@ function BarrelFallback() {
   );
 }
 
-function Barrel({ position, scale = 1, manifest }: BarrelProps) {
+function PropModel({ id, targetSize, fallback, manifest, onAssetReport }: { id: PropModelId; targetSize: number; fallback: React.ReactNode; manifest: QuaterniusManifest | null; onAssetReport: (report: AssetRenderReport) => void }) {
+  const entry = modelEntry(manifest, id);
+  return (
+    <QuaterniusModel
+      id={id}
+      url={modelUrl(manifest, id)}
+      targetSize={entry?.targetSize ?? targetSize}
+      sourcePack={entry?.sourcePack}
+      sourceFile={entry?.sourceFile}
+      fallback={fallback}
+      onReport={onAssetReport}
+    />
+  );
+}
+
+function Barrel({ position, scale = 1, manifest, onAssetReport }: PropBaseProps) {
   return (
     <group position={position} scale={scale}>
-      <QuaterniusModel url={modelUrl(manifest, 'barrel')} targetSize={0.75} fallback={<BarrelFallback />} />
+      <PropModel id="barrel" targetSize={0.75} manifest={manifest} fallback={<BarrelFallback />} onAssetReport={onAssetReport} />
     </group>
   );
 }
@@ -57,10 +80,10 @@ function CrateFallback() {
   );
 }
 
-function Crate({ position, scale = 1, manifest }: CrateProps) {
+function Crate({ position, scale = 1, manifest, onAssetReport }: PropBaseProps) {
   return (
     <group position={position} scale={scale}>
-      <QuaterniusModel url={modelUrl(manifest, 'crate')} targetSize={0.7} fallback={<CrateFallback />} />
+      <PropModel id="crate" targetSize={0.7} manifest={manifest} fallback={<CrateFallback />} onAssetReport={onAssetReport} />
     </group>
   );
 }
@@ -81,10 +104,10 @@ function LampFallback() {
   );
 }
 
-function Lamp({ position, scale = 1, manifest }: LampProps) {
+function Lamp({ position, scale = 1, manifest, onAssetReport }: PropBaseProps) {
   return (
     <group position={position} scale={scale}>
-      <QuaterniusModel url={modelUrl(manifest, 'lamp')} targetSize={0.8} fallback={<LampFallback />} />
+      <PropModel id="lamp" targetSize={0.8} manifest={manifest} fallback={<LampFallback />} onAssetReport={onAssetReport} />
       <pointLight color="#ffbf57" intensity={3.5} distance={2.4} position={[0, 0.9, 0]} />
     </group>
   );
@@ -109,10 +132,10 @@ function TreeFallback() {
   );
 }
 
-function Tree({ position, scale = 1, manifest }: TreeProps) {
+function Tree({ position, scale = 1, manifest, onAssetReport }: PropBaseProps) {
   return (
     <group position={position} scale={scale}>
-      <QuaterniusModel url={modelUrl(manifest, 'tree')} targetSize={1.5} fallback={<TreeFallback />} />
+      <PropModel id="tree" targetSize={1.5} manifest={manifest} fallback={<TreeFallback />} onAssetReport={onAssetReport} />
     </group>
   );
 }
@@ -126,10 +149,10 @@ function RockFallback() {
   );
 }
 
-function Rock({ position, scale = 1, manifest }: RockProps) {
+function Rock({ position, scale = 1, manifest, onAssetReport }: PropBaseProps) {
   return (
     <group position={position} scale={scale}>
-      <QuaterniusModel url={modelUrl(manifest, 'rock')} targetSize={0.9} fallback={<RockFallback />} />
+      <PropModel id="rock" targetSize={0.9} manifest={manifest} fallback={<RockFallback />} onAssetReport={onAssetReport} />
     </group>
   );
 }
@@ -165,25 +188,25 @@ export function VillageGround() {
   );
 }
 
-export function VillageProps({ manifest }: VillagePropsProps) {
+export function VillageProps({ manifest, onAssetReport }: VillagePropsProps) {
   return (
     <group>
-      <Tree position={[-3.9, 0, -1.65]} scale={0.86} manifest={manifest} />
-      <Tree position={[-3.65, 0, 2.15]} scale={0.96} manifest={manifest} />
-      <Tree position={[3.8, 0, 1.62]} scale={1.02} manifest={manifest} />
-      <Tree position={[3.55, 0, -2.18]} scale={0.78} manifest={manifest} />
-      <Tree position={[0.65, 0, -2.55]} scale={0.62} manifest={manifest} />
-      <Crate position={[-1.25, 0, 1.22]} scale={0.82} manifest={manifest} />
-      <Crate position={[2.55, 0, 1.02]} scale={0.7} manifest={manifest} />
-      <Barrel position={[0.78, 0, 1.28]} scale={0.92} manifest={manifest} />
-      <Barrel position={[1.02, 0, 1.38]} scale={0.82} manifest={manifest} />
-      <Barrel position={[1.82, 0, 2.62]} scale={0.9} manifest={manifest} />
-      <Lamp position={[-1.05, 0, 0.92]} scale={0.88} manifest={manifest} />
-      <Lamp position={[1.18, 0, 0.78]} scale={0.88} manifest={manifest} />
-      <Lamp position={[-2.1, 0, -0.15]} scale={0.76} manifest={manifest} />
-      <Lamp position={[2.0, 0, -0.25]} scale={0.76} manifest={manifest} />
-      <Rock position={[-3.05, 0, 0.95]} scale={1} manifest={manifest} />
-      <Rock position={[3.22, 0, 0.55]} scale={1} manifest={manifest} />
+      <Tree position={[-3.9, 0, -1.65]} scale={0.86} manifest={manifest} onAssetReport={onAssetReport} />
+      <Tree position={[-3.65, 0, 2.15]} scale={0.96} manifest={manifest} onAssetReport={onAssetReport} />
+      <Tree position={[3.8, 0, 1.62]} scale={1.02} manifest={manifest} onAssetReport={onAssetReport} />
+      <Tree position={[3.55, 0, -2.18]} scale={0.78} manifest={manifest} onAssetReport={onAssetReport} />
+      <Tree position={[0.65, 0, -2.55]} scale={0.62} manifest={manifest} onAssetReport={onAssetReport} />
+      <Crate position={[-1.25, 0, 1.22]} scale={0.82} manifest={manifest} onAssetReport={onAssetReport} />
+      <Crate position={[2.55, 0, 1.02]} scale={0.7} manifest={manifest} onAssetReport={onAssetReport} />
+      <Barrel position={[0.78, 0, 1.28]} scale={0.92} manifest={manifest} onAssetReport={onAssetReport} />
+      <Barrel position={[1.02, 0, 1.38]} scale={0.82} manifest={manifest} onAssetReport={onAssetReport} />
+      <Barrel position={[1.82, 0, 2.62]} scale={0.9} manifest={manifest} onAssetReport={onAssetReport} />
+      <Lamp position={[-1.05, 0, 0.92]} scale={0.88} manifest={manifest} onAssetReport={onAssetReport} />
+      <Lamp position={[1.18, 0, 0.78]} scale={0.88} manifest={manifest} onAssetReport={onAssetReport} />
+      <Lamp position={[-2.1, 0, -0.15]} scale={0.76} manifest={manifest} onAssetReport={onAssetReport} />
+      <Lamp position={[2.0, 0, -0.25]} scale={0.76} manifest={manifest} onAssetReport={onAssetReport} />
+      <Rock position={[-3.05, 0, 0.95]} scale={1} manifest={manifest} onAssetReport={onAssetReport} />
+      <Rock position={[3.22, 0, 0.55]} scale={1} manifest={manifest} onAssetReport={onAssetReport} />
     </group>
   );
 }
