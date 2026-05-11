@@ -1,5 +1,5 @@
-import { VillageScene } from './scenes/village/VillageScene';
+import { VillageHub3D } from './scenes/village3d/VillageHub3D';
 
 export default function TavernbornePreview() {
-  return <VillageScene />;
+  return <VillageHub3D />;
 }

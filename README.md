@@ -1,10 +1,10 @@
 # Tavernborne
 
-Browser-first 2.5D idle dungeon auto-battler.
+Browser-first 3D idle dungeon auto-battler prototype.
 
 ## Web preview
 
-After the deploy PR is merged into `main`, the public GitHub Pages build should be available at:
+Public GitHub Pages build:
 
 ```text
 https://terratectra.github.io/tavernborne/
@@ -30,12 +30,12 @@ tavern -> heroes -> real-time auto expedition -> loot -> upgrades -> deeper floo
 
 ## Current prototype
 
-- Real-time automated combat foundation
-- Sprite-based 2.5D village hub draft
-- CC0 Kenney asset pipeline through npm + postinstall copy
-- Centered village camera
-- Y-depth sorting for clickable scene objects
-- Minimal in-world selection UI
+- Stylized 3D village hub
+- Fixed 3/4 top-side camera
+- Central tavern composition
+- Warm tavern / forge / dungeon lighting
+- Hover and selection feedback for buildings
+- Legacy sprite-based village kept as fallback, but no longer used as the main entry
 - GitHub Pages deployment workflow
 
 ## Tech stack
@@ -44,6 +44,9 @@ tavern -> heroes -> real-time auto expedition -> loot -> upgrades -> deeper floo
 - React
 - TypeScript
 - Tailwind CSS
+- Three.js
+- React Three Fiber
+- Drei helpers
 - GitHub Pages
 - Browser-first architecture
 - Later target: Windows `.exe` via Tauri
@@ -55,9 +58,9 @@ npm install
 npm run dev
 ```
 
-`npm install` also runs the asset installer and copies CC0 Kenney sprites into `public/assets/kenney-hex/scene`.
+`npm install` also runs the legacy asset installer and copies CC0 Kenney sprites into `public/assets/kenney-hex/scene`.
 
-To re-copy assets manually:
+To re-copy legacy assets manually:
 
 ```bash
 npm run assets:install
