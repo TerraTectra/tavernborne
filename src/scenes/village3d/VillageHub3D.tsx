@@ -31,7 +31,7 @@ export function VillageHub3D() {
         camera={{ position: [5.7, 5.1, 7.2], fov: 42, near: 0.1, far: 80 }}
         onCreated={({ scene, gl }) => {
           scene.background = new Color('#090d18');
-          scene.fog = undefined;
+          scene.fog = null;
           gl.setClearColor('#090d18');
         }}
       >
