@@ -1,4 +1,4 @@
-const KENNEY_SCENE_ROOT = '/assets/kenney-hex/scene';
+const KENNEY_SCENE_ROOT = `${import.meta.env.BASE_URL}assets/kenney-hex/scene`;
 
 export const villageAssets = {
   ground01: `${KENNEY_SCENE_ROOT}/ground_01.png`,
