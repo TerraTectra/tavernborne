@@ -1,17 +1,18 @@
 import { Canvas } from '@react-three/fiber';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Color } from 'three';
 import { VillageBuildings } from './VillageBuildings';
 import { VillageCamera } from './VillageCamera';
 import { defaultSelectedBuildingId, villageBuildings, type VillageBuildingId } from './VillageLayout';
 import { VillageLighting } from './VillageLighting';
-import { useQuaterniusAssets } from './quaterniusAssets';
+import { type AssetRenderDiagnostics, type AssetRenderReport, useQuaterniusAssets } from './quaterniusAssets';
 import { VillageGround, VillageProps } from './VillageProps';
 import { VillageSelectionUI } from './VillageSelectionUI';
 
 export function VillageHub3D() {
   const [selectedId, setSelectedId] = useState<VillageBuildingId>(defaultSelectedBuildingId);
   const [hoveredId, setHoveredId] = useState<VillageBuildingId | null>(null);
+  const [assetDiagnostics, setAssetDiagnostics] = useState<AssetRenderDiagnostics>({} as AssetRenderDiagnostics);
   const assetState = useQuaterniusAssets();
 
   const selected = useMemo(
@@ -23,6 +24,26 @@ export function VillageHub3D() {
     () => villageBuildings.find((building) => building.id === hoveredId) ?? null,
     [hoveredId],
   );
+
+  const handleAssetReport = useCallback((report: AssetRenderReport) => {
+    setAssetDiagnostics((previous) => {
+      const current = previous[report.id];
+      if (
+        current?.status === report.status &&
+        current?.url === report.url &&
+        current?.sourcePack === report.sourcePack &&
+        current?.sourceFile === report.sourceFile &&
+        current?.error === report.error
+      ) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        [report.id]: report,
+      };
+    });
+  }, []);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#050509]">
@@ -40,17 +61,18 @@ export function VillageHub3D() {
         <VillageCamera />
         <VillageLighting />
         <VillageGround />
-        <VillageProps manifest={assetState.manifest} />
+        <VillageProps manifest={assetState.manifest} onAssetReport={handleAssetReport} />
         <VillageBuildings
           buildings={villageBuildings}
           selectedId={selectedId}
           hoveredId={hoveredId}
           manifest={assetState.manifest}
+          onAssetReport={handleAssetReport}
           onSelect={setSelectedId}
           onHover={setHoveredId}
         />
       </Canvas>
-      <VillageSelectionUI selected={selected} hovered={hovered} assetState={assetState} />
+      <VillageSelectionUI selected={selected} hovered={hovered} assetState={assetState} assetDiagnostics={assetDiagnostics} />
     </div>
   );
 }
