@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Suspense, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Color } from 'three';
 import { VillageBuildings } from './VillageBuildings';
 import { VillageCamera } from './VillageCamera';
@@ -37,20 +37,18 @@ export function VillageHub3D() {
           gl.setClearColor('#090d18');
         }}
       >
-        <Suspense fallback={null}>
-          <VillageCamera />
-          <VillageLighting />
-          <VillageGround />
-          <VillageProps manifest={assetState.manifest} />
-          <VillageBuildings
-            buildings={villageBuildings}
-            selectedId={selectedId}
-            hoveredId={hoveredId}
-            manifest={assetState.manifest}
-            onSelect={setSelectedId}
-            onHover={setHoveredId}
-          />
-        </Suspense>
+        <VillageCamera />
+        <VillageLighting />
+        <VillageGround />
+        <VillageProps manifest={assetState.manifest} />
+        <VillageBuildings
+          buildings={villageBuildings}
+          selectedId={selectedId}
+          hoveredId={hoveredId}
+          manifest={assetState.manifest}
+          onSelect={setSelectedId}
+          onHover={setHoveredId}
+        />
       </Canvas>
       <VillageSelectionUI selected={selected} hovered={hovered} assetState={assetState} />
     </div>
