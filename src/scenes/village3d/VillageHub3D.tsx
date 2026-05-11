@@ -5,12 +5,14 @@ import { VillageBuildings } from './VillageBuildings';
 import { VillageCamera } from './VillageCamera';
 import { defaultSelectedBuildingId, villageBuildings, type VillageBuildingId } from './VillageLayout';
 import { VillageLighting } from './VillageLighting';
+import { useQuaterniusAssets } from './quaterniusAssets';
 import { VillageGround, VillageProps } from './VillageProps';
 import { VillageSelectionUI } from './VillageSelectionUI';
 
 export function VillageHub3D() {
   const [selectedId, setSelectedId] = useState<VillageBuildingId>(defaultSelectedBuildingId);
   const [hoveredId, setHoveredId] = useState<VillageBuildingId | null>(null);
+  const assetState = useQuaterniusAssets();
 
   const selected = useMemo(
     () => villageBuildings.find((building) => building.id === selectedId) ?? villageBuildings[0],
@@ -39,17 +41,18 @@ export function VillageHub3D() {
           <VillageCamera />
           <VillageLighting />
           <VillageGround />
-          <VillageProps />
+          <VillageProps manifest={assetState.manifest} />
           <VillageBuildings
             buildings={villageBuildings}
             selectedId={selectedId}
             hoveredId={hoveredId}
+            manifest={assetState.manifest}
             onSelect={setSelectedId}
             onHover={setHoveredId}
           />
         </Suspense>
       </Canvas>
-      <VillageSelectionUI selected={selected} hovered={hovered} />
+      <VillageSelectionUI selected={selected} hovered={hovered} assetState={assetState} />
     </div>
   );
 }

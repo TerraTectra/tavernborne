@@ -43,19 +43,21 @@ base: '/tavernborne/'
 
 GitHub Pages serves project repositories from a subpath, not from the domain root.
 
-### Sprites do not appear in legacy scene
+### Quaternius assets do not appear
 
 Run:
 
 ```bash
-npm run assets:install
+npm run assets:install:quaternius
 ```
 
 Then confirm this generated file exists:
 
 ```text
-public/assets/kenney-hex/scene/manifest.json
+public/assets/quaternius/manifest.json
 ```
+
+The build remains functional if an external asset host is temporarily unavailable, but the scene will use fallback procedural geometry for missing approved models.
 
 ### Deployment trigger
 
