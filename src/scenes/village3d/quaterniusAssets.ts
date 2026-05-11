@@ -33,6 +33,27 @@ export type QuaterniusAssetsState = {
   error: string | null;
 };
 
+export type AssetRenderStatus = 'planned' | 'loading' | 'rendered' | 'fallback' | 'failed';
+
+export type AssetRenderReport = {
+  id: QuaterniusAssetId;
+  status: AssetRenderStatus;
+  url: string | null;
+  sourcePack?: string;
+  sourceFile?: string;
+  error?: string;
+};
+
+export type AssetRenderDiagnostics = Record<QuaterniusAssetId, AssetRenderReport>;
+
+export type AssetRenderSummary = {
+  planned: number;
+  loading: number;
+  rendered: number;
+  fallback: number;
+  failed: number;
+};
+
 const emptyState: QuaterniusAssetsState = {
   loading: true,
   manifest: null,
@@ -42,6 +63,23 @@ const emptyState: QuaterniusAssetsState = {
 export function resolvePublicAssetPath(file: string | undefined): string | null {
   if (!file) return null;
   return `${import.meta.env.BASE_URL}${file.replace(/^\//, '')}`;
+}
+
+export function summarizeAssetDiagnostics(diagnostics: AssetRenderDiagnostics): AssetRenderSummary {
+  const summary: AssetRenderSummary = {
+    planned: 0,
+    loading: 0,
+    rendered: 0,
+    fallback: 0,
+    failed: 0,
+  };
+
+  for (const report of Object.values(diagnostics)) {
+    summary.planned += 1;
+    summary[report.status] += 1;
+  }
+
+  return summary;
 }
 
 export function useQuaterniusAssets(): QuaterniusAssetsState {
