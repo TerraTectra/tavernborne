@@ -1,5 +1,6 @@
 import { useGLTF } from '@react-three/drei';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { SkeletonUtils } from 'three-stdlib';
+import React, { Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Box3, Group, Mesh, Object3D, Vector3 } from 'three';
 
 type QuaterniusModelProps = {
@@ -7,6 +8,32 @@ type QuaterniusModelProps = {
   targetSize: number;
   fallback: React.ReactNode;
 };
+
+type ModelErrorBoundaryProps = {
+  fallback: React.ReactNode;
+  children: React.ReactNode;
+};
+
+type ModelErrorBoundaryState = {
+  failed: boolean;
+};
+
+class ModelErrorBoundary extends React.Component<ModelErrorBoundaryProps, ModelErrorBoundaryState> {
+  state: ModelErrorBoundaryState = { failed: false };
+
+  static getDerivedStateFromError(): ModelErrorBoundaryState {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('[quaternius] Model failed, using fallback:', error);
+  }
+
+  render() {
+    if (this.state.failed) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
 function prepareModel(root: Object3D) {
   root.traverse((child) => {
@@ -28,7 +55,7 @@ function NormalizedGltfModel({ url, targetSize }: { url: string; targetSize: num
   const [scale, setScale] = useState(1);
 
   const clonedScene = useMemo(() => {
-    const cloned = gltf.scene.clone(true);
+    const cloned = SkeletonUtils.clone(gltf.scene) as Object3D;
     prepareModel(cloned);
     return cloned;
   }, [gltf.scene]);
@@ -62,5 +89,12 @@ function NormalizedGltfModel({ url, targetSize }: { url: string; targetSize: num
 
 export function QuaterniusModel({ url, targetSize, fallback }: QuaterniusModelProps) {
   if (!url) return <>{fallback}</>;
-  return <NormalizedGltfModel url={url} targetSize={targetSize} />;
+
+  return (
+    <ModelErrorBoundary fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <NormalizedGltfModel url={url} targetSize={targetSize} />
+      </Suspense>
+    </ModelErrorBoundary>
+  );
 }
