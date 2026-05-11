@@ -8,14 +8,6 @@ After the deployment workflow is merged into `main` and completes successfully, 
 https://terratectra.github.io/tavernborne/
 ```
 
-## Merge order
-
-This repository currently uses stacked PRs:
-
-1. Merge PR #1: project foundation and first prototype.
-2. Merge PR #2: sprite-based village scene pipeline.
-3. Merge the GitHub Pages deployment PR.
-
 ## GitHub Pages setting
 
 If the workflow runs but the site does not appear, open:
@@ -51,7 +43,7 @@ base: '/tavernborne/'
 
 GitHub Pages serves project repositories from a subpath, not from the domain root.
 
-### Sprites do not appear
+### Sprites do not appear in legacy scene
 
 Run:
 
@@ -65,6 +57,6 @@ Then confirm this generated file exists:
 public/assets/kenney-hex/scene/manifest.json
 ```
 
-### PR preview
+### Deployment trigger
 
-This workflow builds pull requests to catch errors, but it only deploys the public website from `main`.
+A push to `main` or a manual `Run workflow` starts the GitHub Pages deployment.
