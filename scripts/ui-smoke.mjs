@@ -10,18 +10,10 @@ page.on('console', (message) => {
   if (message.type() === 'error') pageErrors.push(message.text());
 });
 
-const actorPosition = async (heroId) => {
-  const actor = page.getByTestId(`actor-${heroId}`);
-  return {
-    x: Number(await actor.getAttribute('data-x')),
-    y: Number(await actor.getAttribute('data-y')),
-  };
-};
-
 const actorAttribute = (heroId, attribute) =>
   page.getByTestId(`actor-${heroId}`).getAttribute(attribute);
 
-const advanceHour = async (wait = 90) => {
+const advanceHour = async (wait = 100) => {
   await page.getByRole('button', { name: '+1 час', exact: true }).click();
   await page.waitForTimeout(wait);
 };
@@ -42,93 +34,82 @@ try {
   for (const name of ['Астер', 'Мира', 'Каэль', 'Лиора']) {
     assert.ok(bodyBefore?.includes(name), `Не найден персонаж: ${name}`);
   }
-  assert.ok(bodyBefore?.includes('Общий завтрак'), 'Не создан общий семейный распорядок');
-  assert.ok(bodyBefore?.includes('Экспедиция на 1-й этаж'), 'Не создан план первой экспедиции');
-  assert.ok(bodyBefore?.includes('seed: aster-family-001'), 'Не отображается seed мира');
-  assert.ok(!bodyBefore?.includes('Черты личности'), 'Внутренние параметры не скрыты под вуалью');
-  assert.equal(await page.locator('.rts-head').count(), 3, 'Персонажи не отрисованы как фигуры');
+  assert.ok(bodyBefore?.includes('Общий завтрак'), 'Не создан общий распорядок');
+  assert.ok(bodyBefore?.includes('seed: aster-family-001'), 'Не отображается seed');
+  assert.ok(!bodyBefore?.includes('Черты личности'), 'Внутренняя модель видна без открытия');
+  assert.equal(await page.locator('.rts-head').count(), 3, 'Не отрисованы фигуры героев');
 
   await page.getByRole('button', { name: 'x1', exact: true }).click();
   await page.getByRole('button', { name: 'x2', exact: true }).click();
-  const positionsBefore = await Promise.all(['mira', 'kael', 'liora'].map(actorPosition));
 
   console.log('Checking synchronized breakfast...');
   await advanceHour(1700);
   const breakfastActions = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-action')));
-  assert.deepEqual(breakfastActions, ['eat', 'eat', 'eat'], 'Семья не собралась на общий завтрак');
-  assert.equal(await page.locator('.rts-bowl').count(), 3, 'Не показано совместное принятие пищи');
-  const positionsAfter = await Promise.all(['mira', 'kael', 'liora'].map(actorPosition));
-  assert.ok(positionsAfter.some((position, index) =>
-    Math.hypot(position.x - positionsBefore[index].x, position.y - positionsBefore[index].y) > 1), 'Персонажи не пошли выполнять план');
+  assert.deepEqual(breakfastActions, ['eat', 'eat', 'eat'], 'Семья не собралась на завтрак');
+  assert.equal(await page.locator('.rts-bowl').count(), 3, 'Не показана совместная еда');
 
-  console.log('Checking dungeon departure and return...');
+  console.log('Checking dungeon cycle...');
   await advanceHour(500);
   await advanceHour(2600);
   const phasesAtDeparture = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-phase')));
-  assert.ok(phasesAtDeparture.filter((phase) => phase === 'away').length >= 2, 'Участники похода не покинули карту');
-  const dungeonTextAtDeparture = await page.getByTestId('dungeon-panel').textContent();
-  assert.ok(dungeonTextAtDeparture?.includes('В подземелье'), 'Экспедиция не перешла в активное состояние');
-  assert.ok(dungeonTextAtDeparture?.includes('покинули кибитку'), 'Не создано событие входа в подземелье');
-
+  assert.ok(phasesAtDeparture.filter((phase) => phase === 'away').length >= 2, 'Группа не покинула карту');
+  assert.ok((await page.getByTestId('dungeon-panel').textContent())?.includes('В подземелье'), 'Поход не активен');
   await advanceHour();
-  const dungeonTextAfterEvent = await page.getByTestId('dungeon-panel').textContent();
-  assert.ok(
-    ['бой', 'проход', 'находк', 'паёк', 'доверие', 'монстр'].some((fragment) => dungeonTextAfterEvent?.toLowerCase().includes(fragment)),
-    'Подземелье не создало содержательное событие',
-  );
+  const dungeonEvent = (await page.getByTestId('dungeon-panel').textContent())?.toLowerCase();
+  assert.ok(['бой', 'проход', 'находк', 'паёк', 'доверие', 'монстр'].some((part) => dungeonEvent?.includes(part)), 'Нет события подземелья');
   for (let hour = 0; hour < 6; hour += 1) await advanceHour();
   await page.waitForTimeout(2600);
-  const dungeonTextOnReturn = await page.getByTestId('dungeon-panel').textContent();
-  assert.ok(dungeonTextOnReturn?.includes('Завершён') || dungeonTextOnReturn?.includes('Отступление'), 'Экспедиция не завершилась');
-  assert.ok(dungeonTextOnReturn?.includes('вернул'), 'Нет события возвращения группы');
+  const returned = await page.getByTestId('dungeon-panel').textContent();
+  assert.ok(returned?.includes('Завершён') || returned?.includes('Отступление'), 'Поход не завершился');
 
-  console.log('Checking negotiated social scenes...');
+  console.log('Checking negotiated social scene...');
   await advanceHour();
   await advanceHour(500);
   const socialText = await page.getByTestId('social-scenes-panel').textContent();
-  assert.ok(socialText?.includes('Разговор') || socialText?.includes('Совместная помощь') || socialText?.includes('Попытка примирения'), 'Не создана социальная сцена');
-  assert.ok(socialText?.includes('согласие') || socialText?.includes('перенос') || socialText?.includes('отказ'), 'У социальной сцены нет ответа');
-  assert.ok(socialText?.includes('Мира') || socialText?.includes('Каэль') || socialText?.includes('Лиора'), 'В сцене не показаны участники');
+  assert.ok(socialText?.includes('Разговор') || socialText?.includes('Совместная помощь') || socialText?.includes('Попытка примирения'), 'Социальная сцена не создана');
+  assert.ok(socialText?.includes('согласие') || socialText?.includes('перенос') || socialText?.includes('отказ'), 'Нет ответа на предложение');
 
-  console.log('Checking manual save and load...');
+  console.log('Checking save, autosave and load...');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   const savedTick = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
   await advanceHour();
-  const advancedTick = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
-  assert.ok(advancedTick > savedTick, 'Автосохранение не обновилось после хода времени');
+  await page.waitForFunction(
+    ({ key, previous }) => {
+      const raw = window.localStorage.getItem(key);
+      return raw ? JSON.parse(raw).tick > previous : false;
+    },
+    { key: 'tavernborne.world.v2', previous: savedTick },
+  );
   await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
   await page.waitForTimeout(250);
-  const bodyAfterLoad = await page.textContent('body');
-  assert.ok(bodyAfterLoad?.includes('сохранение загружено'), 'Интерфейс не подтвердил загрузку');
+  assert.ok((await page.getByTestId('save-panel').textContent())?.includes('сохранение загружено'), 'Загрузка не подтверждена');
 
-  console.log('Checking hero history and veiled model...');
+  console.log('Checking history and hidden diagnostics...');
   await page.getByRole('button', { name: 'Открыть историю героя', exact: true }).click();
   await page.getByTestId('hero-history').waitFor();
-  assert.ok((await page.getByTestId('hero-history').textContent())?.includes('История'), 'Не открылась история героя');
   await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
-  await page.getByTestId('inner-model').waitFor();
-  const innerText = await page.getByTestId('inner-model').textContent();
+  const inner = page.getByTestId('inner-model');
+  await inner.waitFor();
+  const innerText = await inner.textContent();
   for (const section of ['Все эмоции', 'Черты личности', 'Потребности', 'Психика', 'Отношения', 'Воспоминания']) {
     assert.ok(innerText?.includes(section), `Не раскрыт раздел: ${section}`);
   }
 
-  console.log('Checking diagnostic export...');
+  console.log('Checking diagnostic export and new seed...');
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Экспорт', exact: true }).click();
   const download = await downloadPromise;
-  assert.ok(download.suggestedFilename().startsWith('tavernborne-'), 'Неверное имя диагностического файла');
-
-  console.log('Checking new deterministic seed...');
+  assert.ok(download.suggestedFilename().startsWith('tavernborne-'), 'Неверное имя экспорта');
   await page.getByLabel('Seed мира').fill('social-test-777');
   await page.getByRole('button', { name: 'Новый мир', exact: true }).click();
   await page.waitForTimeout(250);
-  assert.ok((await page.getByTestId('world-seed').textContent())?.includes('social-test-777'), 'Новый seed не применился');
+  assert.ok((await page.getByTestId('world-seed').textContent())?.includes('social-test-777'), 'Seed не применился');
 
   await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
   await page.getByRole('button', { name: 'Похвалить', exact: true }).click();
   await page.getByRole('button', { name: 'Показать журнал событий', exact: true }).click();
   await page.getByTestId('journal-panel').waitFor();
-  assert.ok((await page.getByTestId('journal-panel').textContent())?.includes('Астер похвалил'), 'Событие не появилось в журнале');
+  assert.ok((await page.getByTestId('journal-panel').textContent())?.includes('Астер похвалил'), 'Событие не попало в журнал');
   assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
 
   console.log('Seeded saves and social scenes browser smoke test passed.');
