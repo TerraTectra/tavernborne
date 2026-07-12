@@ -45,10 +45,18 @@ jobs:
       - name: Test physical bodies in Chromium
         run: node scripts/physical-body-smoke.mjs
 
-      - name: Upload body screenshot
+      - name: Upload body diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: physical-body-screenshot
-          path: physical-body-smoke.png
+          name: physical-body-diagnostics
+          path: physical-body-diagnostics.json
+          if-no-files-found: ignore
+
+      - name: Upload body screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physical-body-screenshots
+          path: physical-body-*.png
           if-no-files-found: ignore
