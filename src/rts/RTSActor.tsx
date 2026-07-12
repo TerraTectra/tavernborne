@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Hero, WorldState } from '../simulation';
 import type { RuntimeActor } from './realtime';
 
@@ -35,6 +36,13 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
   const palette = palettes[hero.id] ?? palettes.mira;
   const targetName = actor.targetId ? world.heroes[actor.targetId]?.name : undefined;
   const facingScale = actor.facing === 'left' ? -1 : 1;
+  const style = {
+    '--cloth': palette.cloth,
+    '--trim': palette.trim,
+    '--hair': palette.hair,
+    '--skin': palette.skin,
+    '--facing-scale': facingScale,
+  } as CSSProperties;
 
   return (
     <button
@@ -59,13 +67,7 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
         className={`rts-unit block ${selected ? 'rts-unit-selected' : ''}`}
         data-phase={actor.phase}
         data-action={actor.actionId ?? 'idle'}
-        style={{
-          '--cloth': palette.cloth,
-          '--trim': palette.trim,
-          '--hair': palette.hair,
-          '--skin': palette.skin,
-          '--facing-scale': facingScale,
-        } as React.CSSProperties}
+        style={style}
       >
         <span className="rts-shadow" />
         <span className="rts-body-wrap">
