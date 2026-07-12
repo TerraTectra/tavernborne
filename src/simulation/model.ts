@@ -1,3 +1,5 @@
+import type { PhysicalBodyState } from './body-model';
+
 export type TraitId =
   | 'kindness'
   | 'cruelty'
@@ -184,6 +186,7 @@ export interface Hero {
   needs: NumberMap<NeedId>;
   psyche: NumberMap<PsycheId>;
   stats: NumberMap<StatId>;
+  body: PhysicalBodyState;
   condition: HeroCondition;
   inventory: InventoryItem[];
   goals: Goal[];

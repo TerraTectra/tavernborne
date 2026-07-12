@@ -10,6 +10,7 @@ import type {
   WorldState,
 } from './model';
 import { ensureLeadership } from './leadership';
+import { createPhysicalBody } from './physical-body';
 
 const traits = (values: Partial<NumberMap<TraitId>>): NumberMap<TraitId> => ({
   kindness: 50, cruelty: 20, pride: 50, friendliness: 50, honesty: 50, patience: 50,
@@ -68,6 +69,11 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     needs: needs({ social: 35, growth: 52 }),
     psyche: psyche({ confidence: 48, resilience: 62 }),
     stats: stats({ strength: 21, endurance: 28, dexterity: 24, magic: 19, perception: 31 }),
+    body: createPhysicalBody({
+      heightCm: 169, massKg: 63, bodyFatPercent: 22, shoulderRatio: 0.238, hipRatio: 0.182,
+      legRatio: 0.52, armSpanRatio: 1.01, muscleBias: 1.03, flexibilityBias: 1.08,
+      coordinationBias: 1.06, boneDensityBias: 1.02,
+    }, 6),
     condition: { health: 100, injury: 0 },
     inventory: [
       { id: 'short-spear', name: 'Короткое копьё', quantity: 1, category: 'weapon' },
@@ -88,6 +94,11 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     needs: needs({ recognition: 58, growth: 70, solitude: 32 }),
     psyche: psyche({ confidence: 72, stress: 22, resilience: 68 }),
     stats: stats({ strength: 36, endurance: 32, dexterity: 29, magic: 6, perception: 21 }),
+    body: createPhysicalBody({
+      heightCm: 183, massKg: 84, bodyFatPercent: 15, shoulderRatio: 0.265, hipRatio: 0.172,
+      legRatio: 0.525, armSpanRatio: 1.035, muscleBias: 1.18, flexibilityBias: 0.92,
+      coordinationBias: 1.02, boneDensityBias: 1.12,
+    }, 6),
     condition: { health: 100, injury: 0 },
     inventory: [
       { id: 'iron-sword', name: 'Железный меч', quantity: 1, category: 'weapon' },
@@ -108,6 +119,11 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     needs: needs({ social: 44, growth: 76, recognition: 48 }),
     psyche: psyche({ confidence: 38, security: 50, resilience: 46 }),
     stats: stats({ strength: 12, endurance: 18, dexterity: 22, magic: 35, perception: 34 }),
+    body: createPhysicalBody({
+      heightCm: 162, massKg: 52, bodyFatPercent: 20, shoulderRatio: 0.226, hipRatio: 0.178,
+      legRatio: 0.508, armSpanRatio: 0.99, muscleBias: 0.9, flexibilityBias: 1.18,
+      coordinationBias: 1.1, boneDensityBias: 0.96,
+    }, 6),
     condition: { health: 100, injury: 0 },
     inventory: [
       { id: 'oak-staff', name: 'Дубовый посох', quantity: 1, category: 'weapon' },

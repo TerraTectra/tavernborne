@@ -1,4 +1,5 @@
 import type { Hero, WorldState } from './model';
+import { hydratePhysicalBody } from './physical-body';
 import { createInitialWorld } from './seed';
 
 export const SAVE_KEY = 'tavernborne.world.v2';
@@ -14,6 +15,7 @@ const hydrateHero = (saved: Partial<Hero> | undefined, fallback: Hero): Hero => 
   needs: { ...fallback.needs, ...(saved?.needs ?? {}) },
   psyche: { ...fallback.psyche, ...(saved?.psyche ?? {}) },
   stats: { ...fallback.stats, ...(saved?.stats ?? {}) },
+  body: hydratePhysicalBody(saved?.body, fallback.body),
   condition: { ...fallback.condition, ...(saved?.condition ?? {}) },
   inventory: Array.isArray(saved?.inventory) ? saved.inventory : fallback.inventory,
   goals: Array.isArray(saved?.goals) ? saved.goals : fallback.goals,
@@ -95,6 +97,12 @@ export const diagnosticPayload = (world: WorldState) => ({
       name: hero.name,
       currentActivity: hero.currentActivity,
       condition: hero.condition,
+      body: {
+        anthropometry: hero.body.anthropometry,
+        tissues: hero.body.tissues,
+        nervous: hero.body.nervous,
+        pose: hero.body.pose,
+      },
       dominantNeeds: Object.entries(hero.needs).sort((left, right) => right[1] - left[1]).slice(0, 3),
       memories: hero.memories.slice(0, 12),
     })),
