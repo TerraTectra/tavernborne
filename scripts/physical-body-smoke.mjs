@@ -52,6 +52,7 @@ try {
   for (const id of Object.keys(expected)) await page.getByTestId(`body-card-${id}`).waitFor();
   await bodyPanel.getByRole('button').click();
 
+  await page.getByTestId('actor-liora').click();
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await page.waitForTimeout(300);
   const initial = await savedWorld();
@@ -74,7 +75,6 @@ try {
   assert.equal(trained.heroes.liora.body.pose.name, 'training', 'Тело не приняло тренировочную позу');
 
   console.log('Checking injury propagation into body segments...');
-  await page.getByTestId('actor-liora').click();
   await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
   await page.getByRole('button', { name: 'Вернуть с травмой', exact: true }).click();
   await advanceHour(600);
