@@ -99,11 +99,15 @@ try {
   assert.ok(phasesAtDeparture.filter((phase) => phase === 'away').length >= 2, 'Группа не покинула карту после совета');
   assert.ok((await page.getByTestId('dungeon-panel').textContent())?.includes('В подземелье'), 'Поход не активен');
   assert.equal(await page.getByTestId('visual-scene-panel').count(), 0, 'Завершённый совет остался активным');
+  await page.getByTestId('dungeon-rts-map').waitFor({ timeout: 5000 });
 
-  console.log('Checking dungeon cycle...');
+  console.log('Checking visual dungeon cycle...');
   await advanceHour();
   const dungeonEvent = (await page.getByTestId('dungeon-panel').textContent())?.toLowerCase();
-  assert.ok(['бой', 'проход', 'находк', 'паёк', 'доверие', 'монстр'].some((part) => dungeonEvent?.includes(part)), 'Нет события подземелья');
+  assert.ok(
+    ['проход', 'коридор', 'развед', 'маршрут', 'ловушк', 'сундук', 'страж'].some((part) => dungeonEvent?.includes(part)),
+    'Нет события визуального исследования подземелья',
+  );
   for (let hour = 0; hour < 6; hour += 1) await advanceHour();
   await page.waitForTimeout(1800);
   const returned = await page.getByTestId('dungeon-panel').textContent();
@@ -124,6 +128,7 @@ try {
   assert.ok(saved.visualScenes?.scenes?.length >= 1, 'Визуальные сцены не попали в сохранение');
   assert.ok(Object.keys(saved.visualScenes.scenes[0].roles ?? {}).length >= 2, 'Роли совета не сохраняются');
   assert.equal(saved.visualScenes.scenes[0].status, 'resolved', 'Совет не завершён в сохранении');
+  assert.ok(saved.expeditions.some((expedition) => expedition.exploration?.rooms?.length === 7), 'Карта этажа не сохранилась');
   const savedTick = saved.tick;
   await advanceHour();
   await page.waitForFunction(
@@ -156,10 +161,10 @@ try {
   await page.getByRole('button', { name: 'Экспорт', exact: true }).click();
   const download = await downloadPromise;
   assert.ok(download.suggestedFilename().startsWith('tavernborne-'), 'Неверное имя экспорта');
-  await page.getByLabel('Seed мира').fill('visual-life-test-777');
+  await page.getByLabel('Seed мира').fill('visual-dungeon-test-777');
   await page.getByRole('button', { name: 'Новый мир', exact: true }).click();
   await page.waitForTimeout(900);
-  assert.ok((await page.getByTestId('world-seed').textContent())?.includes('visual-life-test-777'), 'Seed не применился');
+  assert.ok((await page.getByTestId('world-seed').textContent())?.includes('visual-dungeon-test-777'), 'Seed не применился');
   assert.ok((await page.getByTestId('leadership-panel').textContent())?.includes('лидер семьи'), 'В новом мире не назначен лидер');
 
   await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
@@ -169,9 +174,9 @@ try {
   assert.ok((await page.getByTestId('journal-panel').textContent())?.includes('Астер похвалил'), 'Событие не попало в журнал');
   assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
 
-  console.log('Visual action scenes, leadership and living RTS browser smoke test passed.');
+  console.log('Visual dungeon exploration, leadership and living RTS browser smoke test passed.');
 } catch (error) {
-  console.error('Visual action scene browser smoke test failed:', error);
+  console.error('Visual dungeon exploration regression test failed:', error);
   throw error;
 } finally {
   await page.screenshot({ path: 'rts-smoke.png', fullPage: true }).catch(() => undefined);

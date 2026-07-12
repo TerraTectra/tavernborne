@@ -2,6 +2,7 @@ export * from './model';
 export { evaluateActions, applyEvent, ensureDailyPlans } from './engine';
 export * from './visual-scenes';
 export * from './life-scenes';
+export * from './dungeon-exploration';
 export { advanceLivingSimulation as advanceSimulation, visualDirectiveForHero } from './living-simulation';
 export * from './seed';
 export * from './social';
