@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { SimulationLab } from './lab/SimulationLab';
-import { RTSCamp } from './rts/RTSCamp';
+import { RTSGame } from './rts/RTSGame';
 import { VillageHub3D } from './scenes/village3d/VillageHub3D';
 
 type ViewMode = 'camp' | 'simulation' | 'village';
@@ -40,7 +40,7 @@ export default function TavernbornePreview() {
         </button>
       </nav>
 
-      {viewMode === 'camp' && <RTSCamp />}
+      {viewMode === 'camp' && <RTSGame />}
       {viewMode === 'simulation' && <SimulationLab />}
       {viewMode === 'village' && <VillageHub3D />}
     </div>
