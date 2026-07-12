@@ -1,8 +1,10 @@
+export * from './body-model';
 export * from './model';
 export { evaluateActions, applyEvent, ensureDailyPlans } from './engine';
 export * from './visual-scenes';
 export * from './life-scenes';
 export * from './dungeon-exploration';
+export * from './physical-body';
 export { advanceLivingSimulation as advanceSimulation, visualDirectiveForHero } from './living-simulation';
 export * from './seed';
 export * from './social';
