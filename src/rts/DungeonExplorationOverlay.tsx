@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { dungeonExplorationOf, loadWorld, type Expedition, type WorldState } from '../simulation';
-import { DungeonExplorationMap } from './DungeonExplorationMap';
-import './dungeon-exploration.css';
+import { DungeonWorld3D } from '../three/DungeonWorld3D';
 
 const activeDungeon = (world: WorldState | undefined): Expedition | undefined => {
   if (!world) return undefined;
@@ -28,7 +27,7 @@ export function DungeonExplorationOverlay() {
       className="fixed left-3 right-3 top-[92px] z-[82] h-[720px] max-h-[calc(100vh-112px)] xl:left-5 xl:right-[446px]"
       data-testid="dungeon-visual-overlay"
     >
-      <DungeonExplorationMap world={world} expedition={expedition} />
+      <DungeonWorld3D world={world} expedition={expedition} />
     </div>
   );
 }
