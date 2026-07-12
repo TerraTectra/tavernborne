@@ -16,8 +16,12 @@ const palettes: Record<string, { cloth: string; trim: string; hair: string; skin
   liora: { cloth: '#4e68b8', trim: '#b8c8ff', hair: '#d7c6a0', skin: '#edc39d' },
 };
 
-const actionProp = (actionId?: string) => {
-  switch (actionId) {
+const actionProp = (actor: RuntimeActor) => {
+  if (actor.sceneProp === 'map') return <span className="rts-prop rts-map-scroll" aria-hidden="true" />;
+  if (actor.sceneProp === 'pack') return <span className="rts-prop rts-backpack" aria-hidden="true" />;
+  if (actor.sceneProp === 'weapon') return <span className="rts-prop rts-sword" aria-hidden="true" />;
+
+  switch (actor.actionId) {
     case 'read':
       return <span className="rts-prop rts-book" aria-hidden="true" />;
     case 'train':
@@ -55,6 +59,7 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
         data-y={actor.position.y.toFixed(2)}
         data-phase="away"
         data-action={actor.actionId ?? 'dungeon'}
+        data-scene={actor.sceneId ?? ''}
         onClick={onSelect}
         className="hidden"
         aria-label={`${hero.name}: в подземелье`}
@@ -70,21 +75,34 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
       data-y={actor.position.y.toFixed(2)}
       data-phase={actor.phase}
       data-action={actor.actionId ?? 'idle'}
+      data-scene={actor.sceneId ?? ''}
+      data-gesture={actor.gesture ?? ''}
       onClick={onSelect}
       className="absolute z-30 -translate-x-1/2 -translate-y-1/2 text-left outline-none"
       style={{ left: `${actor.position.x}%`, top: `${actor.position.y}%` }}
-      aria-label={`${hero.name}: ${hero.currentAction?.label ?? 'бездействует'}`}
+      aria-label={`${hero.name}: ${actor.bubble ?? hero.currentAction?.label ?? 'бездействует'}`}
     >
-      {(actor.phase === 'interacting' || actor.phase === 'acting') && actor.bubble && (
-        <span className="absolute bottom-[74px] left-1/2 w-max max-w-40 -translate-x-1/2 rounded-lg border border-white/10 bg-black/85 px-2 py-1 text-[10px] leading-4 text-slate-100 shadow-xl">
-          {actor.bubble}{targetName ? ` — ${targetName}` : ''}
+      {actor.bubble && actor.phase !== 'moving' && (
+        <span className="absolute bottom-[78px] left-1/2 w-max max-w-56 -translate-x-1/2 rounded-lg border border-white/10 bg-black/90 px-2.5 py-1.5 text-[10px] leading-4 text-slate-100 shadow-xl" data-testid={`actor-bubble-${hero.id}`}>
+          {actor.bubble}{targetName && !actor.sceneId ? ` — ${targetName}` : ''}
         </span>
+      )}
+
+      {actor.roleLabel && (
+        <span className="absolute -right-7 -top-3 z-20 rounded-full border border-sky-200/25 bg-slate-950/90 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-sky-100 shadow-lg" data-testid={`actor-role-${hero.id}`}>
+          {actor.roleLabel}
+        </span>
+      )}
+
+      {actor.reaction && (
+        <span className="rts-scene-reaction" data-testid={`actor-reaction-${hero.id}`}>{actor.reaction}</span>
       )}
 
       <span
         className={`rts-unit block ${selected ? 'rts-unit-selected' : ''}`}
         data-phase={actor.phase}
         data-action={actor.actionId ?? 'idle'}
+        data-gesture={actor.gesture ?? ''}
         style={style}
       >
         <span className="rts-shadow" />
@@ -92,11 +110,11 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
           <span className="rts-head"><span className="rts-hair" /></span>
           <span className="rts-torso" />
           <span className="rts-arm rts-arm-left" />
-          <span className="rts-arm rts-arm-right">{actionProp(actor.actionId)}</span>
+          <span className="rts-arm rts-arm-right">{actionProp(actor)}</span>
           <span className="rts-leg rts-leg-left" />
           <span className="rts-leg rts-leg-right" />
           {actor.phase === 'sleeping' && <span className="rts-zzz">Z</span>}
-          {actor.phase === 'interacting' && <span className="rts-talk-dots">•••</span>}
+          {actor.phase === 'interacting' && !actor.sceneId && <span className="rts-talk-dots">•••</span>}
         </span>
       </span>
 
