@@ -65,11 +65,19 @@ const distance = (left: Point, right: Point) => Math.hypot(right.x - left.x, rig
 
 const routeFor = (from: Point, destination: Point): Point[] => {
   const route: Point[] = [];
-  const crossesLowerHalf = from.y > 70 || destination.y > 70;
+  const fromLower = from.y > 70;
+  const destinationLower = destination.y > 70;
+  const crossesLowerBoundary = fromLower !== destinationLower;
   const crossesSides = (from.x < 35 && destination.x > 65) || (from.x > 65 && destination.x < 35);
 
-  if (crossesSides || Math.abs(from.x - destination.x) > 30) route.push({ x: 50, y: 37 });
-  if (crossesLowerHalf) route.push({ x: 50, y: 72 });
+  if (crossesSides || (!fromLower && !destinationLower && Math.abs(from.x - destination.x) > 30)) {
+    route.push({ x: 50, y: 37 });
+  }
+  if (crossesLowerBoundary) {
+    route.push({ x: 50, y: 72 });
+  } else if (fromLower && destinationLower && Math.abs(from.x - destination.x) > 24) {
+    route.push({ x: 50, y: 78 });
+  }
   route.push(destination);
 
   return route.filter((point, index) => index === 0 || distance(point, route[index - 1]) > 1);
