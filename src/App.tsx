@@ -3,6 +3,7 @@ import { SimulationLab } from './lab/SimulationLab';
 import { DungeonExplorationOverlay } from './rts/DungeonExplorationOverlay';
 import { LeadershipOverlay } from './rts/LeadershipOverlay';
 import { LifeSceneOverlay } from './rts/LifeSceneOverlay';
+import { PhysicalBodyOverlay } from './rts/PhysicalBodyOverlay';
 import { RTSGameV2 } from './rts/RTSGameV2';
 import { VisualSceneOverlay } from './rts/VisualSceneOverlay';
 import './rts/rts-additions.css';
@@ -52,6 +53,7 @@ export default function TavernbornePreview() {
           <LifeSceneOverlay />
           <VisualSceneOverlay />
           <LeadershipOverlay />
+          <PhysicalBodyOverlay />
         </>
       )}
       {viewMode === 'simulation' && <SimulationLab />}
