@@ -29,6 +29,33 @@ const addEvent = (
 const party = (world: WorldState, expedition: Expedition): Hero[] =>
   expedition.partyIds.map((id) => world.heroes[id]).filter(Boolean);
 
+const normalizeExplorationFormation = (expedition: Expedition): void => {
+  const exploration = dungeonExplorationOf(expedition);
+  if (!exploration) return;
+
+  const leaderActor = exploration.actors[exploration.leaderId];
+  if (leaderActor) leaderActor.role = 'leader';
+
+  const scoutActor = exploration.actors[exploration.scoutId];
+  if (!scoutActor) return;
+  scoutActor.role = 'scout';
+  if (!['warning', 'helping', 'returning'].includes(scoutActor.status)) {
+    scoutActor.status = 'scouting';
+  }
+
+  const currentRoom = exploration.rooms.find((room) => room.id === exploration.currentRoomId);
+  const targetRoom = exploration.targetRoomId
+    ? exploration.rooms.find((room) => room.id === exploration.targetRoomId)
+    : undefined;
+  if (!currentRoom || !targetRoom) return;
+
+  const dx = targetRoom.x - currentRoom.x;
+  const dy = targetRoom.y - currentRoom.y;
+  const length = Math.max(1, Math.hypot(dx, dy));
+  scoutActor.x = clamp(currentRoom.x + (dx / length) * 7.5, 4, 96);
+  scoutActor.y = clamp(currentRoom.y + (dy / length) * 7.5, 5, 95);
+};
+
 const completeExpedition = (world: WorldState, expedition: Expedition, retreated: boolean): void => {
   const heroes = party(world, expedition);
   expedition.status = retreated ? 'retreated' : 'completed';
@@ -82,6 +109,7 @@ export const advanceExpeditions = (world: WorldState): void => {
     if (expedition.status === 'planned' && world.tick >= expedition.departTick) {
       expedition.status = 'active';
       ensureDungeonExploration(world, expedition);
+      normalizeExplorationFormation(expedition);
     }
     if (expedition.status !== 'active') return;
 
@@ -104,6 +132,7 @@ export const advanceExpeditions = (world: WorldState): void => {
     }
 
     const result = advanceDungeonExploration(world, expedition);
+    normalizeExplorationFormation(expedition);
     const exploration = dungeonExplorationOf(expedition);
     const latestDecision = exploration?.decisions[0];
     if (exploration && latestDecision?.kind === 'help') {
