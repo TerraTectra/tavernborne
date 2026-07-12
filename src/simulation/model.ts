@@ -64,6 +64,8 @@ export type RelationshipId =
   | 'debt'
   | 'rivalry';
 
+export type StatId = 'strength' | 'endurance' | 'dexterity' | 'magic' | 'perception';
+
 export type ActionId =
   | 'eat'
   | 'sleep'
@@ -73,7 +75,9 @@ export type ActionId =
   | 'help'
   | 'apologize'
   | 'seekSolitude'
-  | 'work';
+  | 'work'
+  | 'dungeon'
+  | 'recover';
 
 export type EventType =
   | 'praise'
@@ -104,7 +108,7 @@ export interface Memory {
   valence: number;
   participants: string[];
   tags: string[];
-  sourceEventType: EventType | 'action';
+  sourceEventType: EventType | 'action' | 'dungeon';
 }
 
 export interface Relationship {
@@ -125,6 +129,48 @@ export interface ActionScore {
   reasons: DecisionReason[];
 }
 
+export type PlanSource = 'routine' | 'personal' | 'group' | 'replan' | 'crisis';
+export type PlanStatus = 'planned' | 'active' | 'done' | 'skipped' | 'interrupted';
+
+export interface PlanBlock {
+  id: string;
+  day: number;
+  startHour: number;
+  endHour: number;
+  actionId: ActionId;
+  label: string;
+  source: PlanSource;
+  status: PlanStatus;
+  targetId?: string;
+  groupId?: string;
+  expeditionId?: string;
+  reason?: string;
+}
+
+export interface ActivityState {
+  actionId: ActionId;
+  label: string;
+  startedAt: number;
+  durationHours: number;
+  remainingHours: number;
+  source: PlanSource;
+  targetId?: string;
+  planBlockId?: string;
+  expeditionId?: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  category: 'weapon' | 'armor' | 'consumable' | 'material' | 'loot' | 'book';
+}
+
+export interface HeroCondition {
+  health: number;
+  injury: number;
+}
+
 export interface Hero {
   id: string;
   name: string;
@@ -133,9 +179,16 @@ export interface Hero {
   emotions: NumberMap<EmotionId>;
   needs: NumberMap<NeedId>;
   psyche: NumberMap<PsycheId>;
+  stats: NumberMap<StatId>;
+  condition: HeroCondition;
+  inventory: InventoryItem[];
   goals: Goal[];
   memories: Memory[];
   relationships: Record<string, Relationship>;
+  dailyPlan: PlanBlock[];
+  planDay: number;
+  lastReplanTick: number;
+  currentActivity?: ActivityState;
   currentAction?: ActionScore;
 }
 
@@ -154,7 +207,38 @@ export interface JournalEntry {
   tick: number;
   text: string;
   heroIds: string[];
-  kind: 'event' | 'decision' | 'system';
+  kind: 'event' | 'decision' | 'system' | 'dungeon';
+}
+
+export interface DungeonEvent {
+  id: string;
+  tick: number;
+  type: 'travel' | 'battle' | 'discovery' | 'danger' | 'rest' | 'bond' | 'return';
+  text: string;
+  heroIds: string[];
+}
+
+export interface Expedition {
+  id: string;
+  day: number;
+  floor: number;
+  partyIds: string[];
+  departTick: number;
+  plannedReturnTick: number;
+  status: 'planned' | 'active' | 'returning' | 'completed' | 'retreated';
+  progress: number;
+  risk: number;
+  loot: InventoryItem[];
+  events: DungeonEvent[];
+  outcome?: string;
+}
+
+export interface FamilyRoutine {
+  wakeHour: number;
+  breakfastHour: number;
+  lunchHour: number;
+  dinnerHour: number;
+  sleepHour: number;
 }
 
 export interface God {
@@ -168,4 +252,7 @@ export interface WorldState {
   god: God;
   heroes: Record<string, Hero>;
   journal: JournalEntry[];
+  expeditions: Expedition[];
+  routine: FamilyRoutine;
+  nextExpeditionId: number;
 }

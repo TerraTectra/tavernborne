@@ -3,7 +3,7 @@ import type { ActionId, Hero, WorldState } from '../simulation';
 
 export type Point = { x: number; y: number };
 export type Facing = 'left' | 'right' | 'up' | 'down';
-export type ActorPhase = 'idle' | 'moving' | 'acting' | 'interacting' | 'sleeping';
+export type ActorPhase = 'idle' | 'moving' | 'acting' | 'interacting' | 'sleeping' | 'away';
 
 export interface RuntimeActor {
   heroId: string;
@@ -30,22 +30,25 @@ const fixedDestinations: Record<Exclude<ActionId, 'talk' | 'help' | 'apologize'>
   read: [{ x: 46, y: 55 }, { x: 51, y: 53 }, { x: 55, y: 57 }],
   seekSolitude: [{ x: 17, y: 84 }, { x: 23, y: 85 }, { x: 28, y: 82 }],
   work: [{ x: 77, y: 55 }, { x: 84, y: 58 }, { x: 89, y: 53 }],
+  recover: [{ x: 77, y: 22 }, { x: 84, y: 22 }, { x: 89, y: 22 }],
+  dungeon: [{ x: 78, y: 85 }, { x: 84, y: 85 }, { x: 90, y: 85 }],
 };
 
 const bubbleLabels: Record<ActionId, string> = {
-  eat: 'Наконец-то поесть…',
-  sleep: 'Мне нужно отдохнуть',
+  eat: 'Пора собраться за столом',
+  sleep: 'Отбой',
   train: 'Ещё один подход',
-  read: 'Здесь есть что-то полезное',
+  read: 'Нужно разобраться',
   talk: 'Надо поговорить',
   help: 'Я помогу',
   apologize: 'Нужно всё исправить',
-  seekSolitude: 'Хочу побыть один',
+  seekSolitude: 'Хочу немного тишины',
   work: 'Пора заняться делом',
+  dungeon: 'Выдвигаемся',
+  recover: 'Нужно прийти в себя',
 };
 
 const socialActions = new Set<ActionId>(['talk', 'help', 'apologize']);
-
 const distance = (left: Point, right: Point) => Math.hypot(right.x - left.x, right.y - left.y);
 
 const routeFor = (from: Point, destination: Point): Point[] => {
@@ -53,8 +56,12 @@ const routeFor = (from: Point, destination: Point): Point[] => {
   const crossesLowerHalf = from.y > 70 || destination.y > 70;
   const crossesSides = (from.x < 35 && destination.x > 65) || (from.x > 65 && destination.x < 35);
 
-  if (crossesLowerHalf) route.push({ x: 50, y: 72 });
-  if (crossesSides || Math.abs(from.x - destination.x) > 30) route.push({ x: 50, y: 37 });
+  if (crossesSides || Math.abs(from.x - destination.x) > 30) {
+    route.push({ x: 50, y: 37 });
+  }
+  if (crossesLowerHalf) {
+    route.push({ x: 50, y: 72 });
+  }
   route.push(destination);
 
   return route.filter((point, index) => index === 0 || distance(point, route[index - 1]) > 1);
@@ -69,6 +76,7 @@ const facingFor = (from: Point, to: Point): Facing => {
 
 const actionPhase = (actionId: ActionId): ActorPhase => {
   if (actionId === 'sleep') return 'sleeping';
+  if (actionId === 'dungeon') return 'away';
   if (socialActions.has(actionId)) return 'interacting';
   return 'acting';
 };
@@ -84,7 +92,7 @@ const actionDestination = (
 
   if (socialActions.has(action.actionId) && action.targetId) {
     const target = actors[action.targetId];
-    if (target) {
+    if (target && target.phase !== 'away') {
       const offset = actorIndex % 2 === 0 ? -3.3 : 3.3;
       return { x: target.position.x + offset, y: target.position.y + 0.8 };
     }
@@ -112,13 +120,8 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
   const speedRef = useRef(speedMultiplier);
   const [actors, setActors] = useState<Record<string, RuntimeActor>>(() => createRuntime(world));
 
-  useEffect(() => {
-    worldRef.current = world;
-  }, [world]);
-
-  useEffect(() => {
-    speedRef.current = speedMultiplier;
-  }, [speedMultiplier]);
+  useEffect(() => { worldRef.current = world; }, [world]);
+  useEffect(() => { speedRef.current = speedMultiplier; }, [speedMultiplier]);
 
   useEffect(() => {
     let previous = performance.now();
@@ -130,7 +133,11 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
 
       setActors((current) => {
         const next = Object.fromEntries(
-          Object.entries(current).map(([id, actor]) => [id, { ...actor, position: { ...actor.position }, route: actor.route.map((point) => ({ ...point })) }]),
+          Object.entries(current).map(([id, actor]) => [id, {
+            ...actor,
+            position: { ...actor.position },
+            route: actor.route.map((point) => ({ ...point })),
+          }]),
         ) as Record<string, RuntimeActor>;
         const heroes = Object.values(worldRef.current.heroes);
 
@@ -149,7 +156,8 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
             return;
           }
 
-          const key = `${worldRef.current.tick}:${action.actionId}:${action.targetId ?? ''}`;
+          const activityStartedAt = hero.currentActivity?.startedAt ?? worldRef.current.tick;
+          const key = `${activityStartedAt}:${action.actionId}:${action.targetId ?? ''}`;
           const destination = actionDestination(hero, index, next);
           const dynamicSocialTarget = socialActions.has(action.actionId) && Boolean(action.targetId);
 

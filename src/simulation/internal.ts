@@ -36,6 +36,9 @@ export const cloneHero = (hero: Hero): Hero => ({
   emotions: { ...hero.emotions },
   needs: { ...hero.needs },
   psyche: { ...hero.psyche },
+  stats: { ...hero.stats },
+  condition: { ...hero.condition },
+  inventory: hero.inventory.map((item) => ({ ...item })),
   goals: hero.goals.map((goal) => ({ ...goal, tags: [...goal.tags] })),
   memories: hero.memories.map((memory) => ({
     ...memory,
@@ -48,6 +51,8 @@ export const cloneHero = (hero: Hero): Hero => ({
       { ...relationship, values: { ...relationship.values } },
     ]),
   ),
+  dailyPlan: hero.dailyPlan.map((block) => ({ ...block })),
+  currentActivity: hero.currentActivity ? { ...hero.currentActivity } : undefined,
   currentAction: hero.currentAction
     ? { ...hero.currentAction, reasons: hero.currentAction.reasons.map((reason) => ({ ...reason })) }
     : undefined,
@@ -56,10 +61,17 @@ export const cloneHero = (hero: Hero): Hero => ({
 export const cloneWorld = (state: WorldState, tick = state.tick): WorldState => ({
   ...state,
   tick,
+  routine: { ...state.routine },
   heroes: Object.fromEntries(
     Object.entries(state.heroes).map(([id, hero]) => [id, cloneHero(hero)]),
   ),
   journal: [...state.journal],
+  expeditions: state.expeditions.map((expedition) => ({
+    ...expedition,
+    partyIds: [...expedition.partyIds],
+    loot: expedition.loot.map((item) => ({ ...item })),
+    events: expedition.events.map((event) => ({ ...event, heroIds: [...event.heroIds] })),
+  })),
 });
 
 export const pushJournal = (
@@ -75,7 +87,7 @@ export const pushJournal = (
     heroIds,
     kind,
   });
-  world.journal = world.journal.slice(0, 120);
+  world.journal = world.journal.slice(0, 180);
 };
 
 export const changeEmotion = (hero: Hero, emotion: EmotionId, amount: number): void => {
@@ -114,4 +126,19 @@ export const decayMap = <K extends string>(
   (Object.keys(map) as K[]).forEach((key) => {
     map[key] = clamp(map[key] - (decay[key] ?? 1));
   });
+};
+
+export const mergeInventory = (hero: Hero, item: Hero['inventory'][number]): void => {
+  const existing = hero.inventory.find((candidate) => candidate.id === item.id);
+  if (existing) existing.quantity += item.quantity;
+  else hero.inventory.push({ ...item });
+};
+
+export const deterministicUnit = (seed: string): number => {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
 };

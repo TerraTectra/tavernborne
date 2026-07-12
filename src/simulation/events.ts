@@ -4,6 +4,7 @@ import {
   changeRelationship,
   clamp,
   cloneWorld,
+  mergeInventory,
   personalityMultiplier,
   pushJournal,
 } from './internal';
@@ -116,6 +117,7 @@ export const applyEvent = (state: WorldState, event: SimulationEvent): WorldStat
     case 'gift': {
       changeEmotion(subject, 'joy', power * 2.5);
       changeEmotion(subject, 'affection', power * 1.8);
+      mergeInventory(subject, { id: `gift-${world.tick}`, name: 'Подарок Астера', quantity: 1, category: 'consumable' });
       if (target) {
         changeRelationship(target, event.actorId, 'liking', power * 2.5);
         changeRelationship(target, event.actorId, 'debt', power * 1.2);
@@ -136,6 +138,8 @@ export const applyEvent = (state: WorldState, event: SimulationEvent): WorldStat
       changeEmotion(subject, 'anxiety', power * 2.4);
       subject.psyche.stress = clamp(subject.psyche.stress + power * 2.8);
       subject.needs.safety = clamp(subject.needs.safety + power * 3.2);
+      subject.condition.health = clamp(subject.condition.health - power * 2.6);
+      subject.condition.injury = clamp(subject.condition.injury + power * 3.2);
       break;
     case 'loss': {
       const attachment = personalityMultiplier(subject, ['empathy', 'loyalty', 'friendliness']);

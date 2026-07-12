@@ -1,0 +1,19 @@
+.rts-bandage {
+  left: -3px;
+  top: 15px;
+  width: 18px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 3px;
+  background: repeating-linear-gradient(90deg, #e7e3d6 0 4px, #b76a6a 4px 7px);
+  transform: rotate(-12deg);
+}
+
+.rts-unit[data-phase="acting"][data-action="recover"] .rts-arm-right {
+  animation: rts-recover 1.2s ease-in-out infinite;
+}
+
+@keyframes rts-recover {
+  0%, 100% { transform: rotate(-28deg); }
+  50% { transform: rotate(-72deg); }
+}

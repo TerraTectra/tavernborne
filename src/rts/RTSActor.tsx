@@ -27,6 +27,8 @@ const actionProp = (actionId?: string) => {
       return <span className="rts-prop rts-hammer" aria-hidden="true" />;
     case 'eat':
       return <span className="rts-prop rts-bowl" aria-hidden="true" />;
+    case 'recover':
+      return <span className="rts-prop rts-bandage" aria-hidden="true" />;
     default:
       return null;
   }
@@ -43,6 +45,22 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
     '--skin': palette.skin,
     '--facing-scale': facingScale,
   } as CSSProperties;
+
+  if (actor.phase === 'away') {
+    return (
+      <button
+        type="button"
+        data-testid={`actor-${hero.id}`}
+        data-x={actor.position.x.toFixed(2)}
+        data-y={actor.position.y.toFixed(2)}
+        data-phase="away"
+        data-action={actor.actionId ?? 'dungeon'}
+        onClick={onSelect}
+        className="hidden"
+        aria-label={`${hero.name}: в подземелье`}
+      />
+    );
+  }
 
   return (
     <button
@@ -71,9 +89,7 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
       >
         <span className="rts-shadow" />
         <span className="rts-body-wrap">
-          <span className="rts-head">
-            <span className="rts-hair" />
-          </span>
+          <span className="rts-head"><span className="rts-hair" /></span>
           <span className="rts-torso" />
           <span className="rts-arm rts-arm-left" />
           <span className="rts-arm rts-arm-right">{actionProp(actor.actionId)}</span>
