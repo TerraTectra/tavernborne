@@ -43,7 +43,20 @@ jobs:
           exit 1
 
       - name: Test visual dungeon exploration in Chromium
-        run: node scripts/dungeon-exploration-smoke.mjs
+        shell: bash
+        run: |
+          set +e
+          node scripts/dungeon-exploration-smoke.mjs 2>&1 | tee dungeon-exploration-diagnostics.txt
+          status=${PIPESTATUS[0]}
+          exit $status
+
+      - name: Upload dungeon diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dungeon-exploration-diagnostics
+          path: dungeon-exploration-diagnostics.txt
+          if-no-files-found: ignore
 
       - name: Upload dungeon screenshot
         if: always()
