@@ -143,3 +143,204 @@
   from { transform: translateY(1px) scale(0.95); }
   to { transform: translateY(-3px) scale(1.05); }
 }
+
+/* Data-driven articulated humanoid rig. The outer body-wrap keeps the existing
+   scene animations; anatomy carries individual proportions and joint chains. */
+.rts-anatomy {
+  position: absolute;
+  inset: 0;
+  width: 42px;
+  height: 59px;
+  transform: translateX(var(--body-lean, 0)) scale(var(--body-height-scale, 1));
+  transform-origin: center bottom;
+}
+
+.rts-neck {
+  position: absolute;
+  z-index: 3;
+  left: 18px;
+  top: 16px;
+  width: 8px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--skin);
+  box-shadow: inset -2px 0 rgba(70, 38, 24, 0.12);
+}
+
+.rts-head {
+  left: 13px;
+  top: 0;
+  width: 18px;
+  height: 19px;
+  transform: scale(var(--head-scale, 1));
+  transform-origin: center bottom;
+}
+
+.rts-torso {
+  left: 10px;
+  top: 19px;
+  width: 24px;
+  height: 23px;
+  transform: scaleX(var(--shoulder-scale, 1));
+  transform-origin: center top;
+}
+
+.rts-abdomen {
+  position: absolute;
+  left: 5px;
+  top: 17px;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px 3px 6px 6px;
+  background: color-mix(in srgb, var(--cloth) 76%, #17181c);
+}
+
+.rts-pelvis {
+  position: absolute;
+  z-index: 3;
+  left: 12px;
+  top: 39px;
+  width: 20px;
+  height: 9px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 5px 5px 7px 7px;
+  background: color-mix(in srgb, var(--cloth) 68%, #121318);
+  transform: scaleX(var(--hip-scale, 1));
+}
+
+.rts-arm,
+.rts-leg {
+  background: transparent;
+  border: 0;
+  overflow: visible;
+}
+
+.rts-arm {
+  z-index: 2;
+  top: 21px;
+  width: 7px;
+  height: 15px;
+}
+
+.rts-arm-left {
+  left: 5px;
+  transform: rotate(var(--left-shoulder-angle, 8deg));
+}
+
+.rts-arm-right {
+  right: 4px;
+  transform: rotate(var(--right-shoulder-angle, -10deg));
+}
+
+.rts-upper-arm,
+.rts-forearm,
+.rts-thigh,
+.rts-shin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(7px * var(--limb-thickness-scale, 1));
+  margin-left: calc((7px - (7px * var(--limb-thickness-scale, 1))) / 2);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 5px;
+  background: var(--cloth);
+  transform-origin: top center;
+}
+
+.rts-upper-arm {
+  height: 14px;
+}
+
+.rts-forearm {
+  top: 12px;
+  height: 13px;
+  background: color-mix(in srgb, var(--cloth) 84%, var(--skin));
+}
+
+.rts-arm-left .rts-forearm { transform: rotate(var(--left-elbow-angle, 8deg)); }
+.rts-arm-right .rts-forearm { transform: rotate(var(--right-elbow-angle, 8deg)); }
+
+.rts-joint {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  width: calc(7px * var(--limb-thickness-scale, 1));
+  height: calc(7px * var(--limb-thickness-scale, 1));
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--cloth) 72%, var(--skin));
+  transform: translateX(-50%);
+}
+
+.rts-elbow { top: 10px; }
+.rts-wrist { top: 9px; }
+.rts-knee { top: 13px; }
+.rts-ankle { top: 12px; }
+
+.rts-hand {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 45% 45% 55% 55%;
+  background: var(--skin);
+  transform: translateX(-50%);
+}
+
+.rts-hand .rts-prop {
+  transform-origin: 50% 85%;
+}
+
+.rts-leg {
+  z-index: 1;
+  top: 45px;
+  width: 8px;
+  height: 15px;
+}
+
+.rts-leg-left {
+  left: 11px;
+  transform: rotate(var(--left-hip-angle, 0deg));
+}
+
+.rts-leg-right {
+  right: 9px;
+  transform: rotate(var(--right-hip-angle, 0deg));
+}
+
+.rts-thigh {
+  height: 15px;
+  background: color-mix(in srgb, var(--cloth) 70%, #13151a);
+}
+
+.rts-shin {
+  top: 13px;
+  height: 14px;
+  background: color-mix(in srgb, var(--cloth) 58%, #101217);
+}
+
+.rts-leg-left .rts-shin { transform: rotate(var(--left-knee-angle, 4deg)); }
+.rts-leg-right .rts-shin { transform: rotate(var(--right-knee-angle, 4deg)); }
+
+.rts-foot {
+  position: absolute;
+  left: -1px;
+  top: 11px;
+  width: 12px;
+  height: 6px;
+  border-radius: 5px 7px 3px 3px;
+  background: #28231f;
+  box-shadow: inset -3px 0 rgba(0,0,0,.22);
+}
+
+.rts-unit[data-phase="sleeping"] .rts-anatomy {
+  transform: translateX(var(--body-lean, 0)) scale(var(--body-height-scale, 1));
+}
+
+.rts-unit[data-action="train"] .rts-forearm,
+.rts-unit[data-action="work"] .rts-forearm,
+.rts-unit[data-action="help"] .rts-forearm {
+  filter: brightness(1.04);
+}
