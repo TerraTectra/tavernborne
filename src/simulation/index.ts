@@ -1,7 +1,8 @@
 export * from './model';
 export { evaluateActions, applyEvent, ensureDailyPlans } from './engine';
-export { advanceLivingSimulation as advanceSimulation } from './visual-scenes';
 export * from './visual-scenes';
+export * from './life-scenes';
+export { advanceLivingSimulation as advanceSimulation, visualDirectiveForHero } from './living-simulation';
 export * from './seed';
 export * from './social';
 export * from './leadership';
