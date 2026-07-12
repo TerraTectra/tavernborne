@@ -65,7 +65,12 @@ export const cloneWorld = (state: WorldState, tick = state.tick): WorldState => 
   heroes: Object.fromEntries(
     Object.entries(state.heroes).map(([id, hero]) => [id, cloneHero(hero)]),
   ),
-  journal: [...state.journal],
+  journal: state.journal.map((entry) => ({ ...entry, heroIds: [...entry.heroIds] })),
+  socialScenes: state.socialScenes.map((scene) => ({
+    ...scene,
+    planBlockIds: [...scene.planBlockIds],
+    lines: scene.lines.map((line) => ({ ...line })),
+  })),
   expeditions: state.expeditions.map((expedition) => ({
     ...expedition,
     partyIds: [...expedition.partyIds],
@@ -87,7 +92,7 @@ export const pushJournal = (
     heroIds,
     kind,
   });
-  world.journal = world.journal.slice(0, 180);
+  world.journal = world.journal.slice(0, 240);
 };
 
 export const changeEmotion = (hero: Hero, emotion: EmotionId, amount: number): void => {
@@ -142,3 +147,6 @@ export const deterministicUnit = (seed: string): number => {
   }
   return (hash >>> 0) / 4294967295;
 };
+
+export const worldRoll = (world: WorldState, key: string): number =>
+  deterministicUnit(`${world.seed}:${key}`);
