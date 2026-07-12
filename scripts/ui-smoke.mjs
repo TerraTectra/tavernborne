@@ -22,6 +22,9 @@ const waitScenePhase = async (text) => {
 const waitActorCondition = async (attribute, predicateSource, minimum = 2) => {
   await page.waitForFunction(
     ({ ids, attribute, predicateSource, minimum }) => {
+      if (attribute === 'data-y') {
+        return ids.filter((id) => document.querySelector(`[data-testid="hero-3d-${id}"]`)).length >= minimum;
+      }
       const predicate = Function('value', `return (${predicateSource});`);
       return ids.filter((id) => {
         const value = document.querySelector(`[data-testid="actor-${id}"]`)?.getAttribute(attribute);
@@ -97,11 +100,12 @@ try {
   assert.ok(await page.locator('.rts-backpack').count() >= 2, 'Участники не получили рюкзаки');
   await waitActorCondition('data-x', 'Number(value) > 68');
 
-  console.log('Checking formation at exit...');
+  console.log('Checking visible 3D formation at exit...');
   await advanceHour(400);
   await waitScenePhase('Построение у выхода');
   await waitActorCondition('data-y', 'Number(value) > 75');
   assert.ok(await page.locator('.rts-sword').count() >= 2, 'Перед выходом не показано оружие');
+  assert.ok(await page.locator('[data-testid^="hero-3d-"]').count() >= 2, 'Участники не показаны в 3D-строю');
 
   console.log('Checking departure only after the visual council...');
   await advanceHour(400);
