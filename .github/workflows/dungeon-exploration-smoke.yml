@@ -1,0 +1,55 @@
+name: Visual dungeon exploration smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/tavernborne-preview.log 2>&1 &
+          echo $! > /tmp/tavernborne-preview.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tavernborne-preview.log
+          exit 1
+
+      - name: Test visual dungeon exploration in Chromium
+        run: node scripts/dungeon-exploration-smoke.mjs
+
+      - name: Upload dungeon screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dungeon-exploration-screenshot
+          path: dungeon-exploration-smoke.png
+          if-no-files-found: ignore
