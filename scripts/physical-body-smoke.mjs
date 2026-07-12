@@ -80,20 +80,26 @@ try {
     assert.equal(Object.keys(initial.heroes[id].body.segments).length, 17, `${id}: сегменты не сохранены`);
     assert.equal(Object.keys(initial.heroes[id].body.joints).length, 14, `${id}: суставы не сохранены`);
   }
-  const initialLioraMuscle = initial.heroes.liora.body.anthropometry.muscleMassKg;
-  const initialLioraFatigue = initial.heroes.liora.body.tissues.muscleFatigue;
 
   stage = 'training';
-  console.log('Advancing Liora into her afternoon training block...');
-  for (let hour = 0; hour < 9; hour += 1) await advanceHour(520);
+  console.log('Advancing Liora to the start of her afternoon training block...');
+  for (let hour = 0; hour < 8; hour += 1) await advanceHour(520);
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await page.waitForTimeout(250);
+  const preTraining = await savedWorld();
+  snapshots.preTraining = bodySnapshot(preTraining, 'liora');
+  assert.equal(preTraining.heroes.liora.currentActivity?.actionId, 'train', 'Лиора не начала запланированную тренировку');
+  assert.equal(preTraining.heroes.liora.body.pose.name, 'training', 'Тело не приняло тренировочную позу');
+
+  await advanceHour(600);
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await page.waitForTimeout(300);
   const trained = await savedWorld();
   snapshots.trained = bodySnapshot(trained, 'liora');
-  assert.equal(trained.heroes.liora.currentActivity?.actionId, 'train', 'Лиора не начала запланированную тренировку');
-  assert.ok(trained.heroes.liora.body.anthropometry.muscleMassKg > initialLioraMuscle, 'Тренировка не изменила мышечную адаптацию');
-  assert.ok(trained.heroes.liora.body.tissues.muscleFatigue > initialLioraFatigue, 'Тренировка не повысила мышечную усталость');
-  assert.equal(trained.heroes.liora.body.pose.name, 'training', 'Тело не приняло тренировочную позу');
+  assert.equal(trained.heroes.liora.currentActivity?.actionId, 'train', 'Лиора прервала тренировку раньше времени');
+  assert.ok(trained.heroes.liora.body.anthropometry.muscleMassKg > preTraining.heroes.liora.body.anthropometry.muscleMassKg, 'Тренировочный час не изменил мышечную адаптацию');
+  assert.ok(trained.heroes.liora.body.tissues.muscleFatigue > preTraining.heroes.liora.body.tissues.muscleFatigue, 'Тренировочный час не повысил мышечную усталость');
+  assert.equal(trained.heroes.liora.body.pose.name, 'training', 'Тело потеряло тренировочную позу');
 
   stage = 'injury';
   console.log('Checking injury propagation into body segments...');
@@ -115,8 +121,9 @@ try {
     delete world.heroes.mira.body;
     window.localStorage.setItem('tavernborne.world.v2', JSON.stringify(world));
   });
-  await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
-  await page.waitForTimeout(450);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'Живая кибитка' }).waitFor();
+  await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await page.waitForTimeout(250);
   const migrated = await savedWorld();
