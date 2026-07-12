@@ -1,7 +1,7 @@
 import type { ActionScore, ActivityState, Hero, PlanBlock, WorldState } from './model';
 import { actionLabels, evaluateActions } from './decisions';
 import { activeExpeditionForHero, advanceExpeditions } from './dungeon';
-import { changeRelationship, clamp, cloneWorld, decayMap, pushJournal } from './internal';
+import { changeRelationship, clamp, cloneWorld, decayMap, pushJournal, worldRoll } from './internal';
 import {
   crisisAction,
   defaultDurations,
@@ -10,8 +10,8 @@ import {
   insertReplan,
   planBlockAt,
   scoreFromPlan,
-  shouldPermitReplan,
 } from './schedule';
+import { advanceSocialScenes, isSocialAction, tryStartSocialScene } from './social';
 
 const evolveHero = (hero: Hero): void => {
   const sleeping = hero.currentActivity?.actionId === 'sleep';
@@ -54,7 +54,7 @@ const actionFromActivity = (activity: ActivityState): ActionScore => ({
 
 const applyActivityHour = (hero: Hero, world: WorldState): void => {
   const activity = hero.currentActivity;
-  if (!activity || activity.actionId === 'dungeon') return;
+  if (!activity || activity.actionId === 'dungeon' || activity.socialSceneId) return;
   switch (activity.actionId) {
     case 'eat':
       hero.needs.hunger = clamp(hero.needs.hunger - 42);
@@ -157,7 +157,11 @@ const interruptActivity = (hero: Hero, world: WorldState, reason: string): void 
   hero.currentAction = undefined;
 };
 
-const startActivity = (hero: Hero, world: WorldState, plan: PlanBlock, score: ActionScore): void => {
+const startActivity = (hero: Hero, world: WorldState, plan: PlanBlock, score: ActionScore): boolean => {
+  const socialResult = tryStartSocialScene(hero, world, plan, score);
+  if (socialResult === 'started') return true;
+  if (socialResult === 'declined') return false;
+
   const remainingInBlock = Math.max(1, plan.endHour - hourOf(world.tick));
   const duration = Math.max(1, Math.min(remainingInBlock, defaultDurations[plan.actionId]));
   plan.status = 'active';
@@ -179,6 +183,7 @@ const startActivity = (hero: Hero, world: WorldState, plan: PlanBlock, score: Ac
     [hero.id, ...(hero.currentActivity.targetId ? [hero.currentActivity.targetId] : [])],
     'decision',
   );
+  return true;
 };
 
 const syncDungeonActivity = (hero: Hero, world: WorldState): boolean => {
@@ -207,8 +212,22 @@ const syncDungeonActivity = (hero: Hero, world: WorldState): boolean => {
   return true;
 };
 
+const shouldPermitReplan = (hero: Hero, world: WorldState, crisis: boolean): boolean =>
+  crisis
+  || world.tick - hero.lastReplanTick >= 3
+  || worldRoll(world, `${hero.id}:${world.tick}:replan`) > 0.92;
+
+const fallbackAction = (hero: Hero, world: WorldState): ActionScore => {
+  const options = evaluateActions(hero, world);
+  if (world.tick - hero.lastSocialTick < 2) {
+    return options.find((option) => !isSocialAction(option.actionId)) ?? options[0];
+  }
+  return options[0];
+};
+
 const progressHero = (hero: Hero, world: WorldState): void => {
   if (syncDungeonActivity(hero, world)) return;
+  if (hero.currentActivity?.socialSceneId) return;
 
   const crisisId = crisisAction(hero);
   const hasCrisis = Boolean(crisisId);
@@ -246,15 +265,16 @@ const progressHero = (hero: Hero, world: WorldState): void => {
   if (planned) {
     const targetAway = planned.targetId && activeExpeditionForHero(world, planned.targetId);
     if (!targetAway) {
-      startActivity(hero, world, planned, scoreFromPlan(hero, planned));
-      return;
+      const started = startActivity(hero, world, planned, scoreFromPlan(hero, planned));
+      if (started) return;
+    } else {
+      planned.status = 'skipped';
+      planned.reason = 'нужный человек находится в подземелье';
     }
-    planned.status = 'skipped';
-    planned.reason = 'нужный человек находится в подземелье';
   }
 
   if (!shouldPermitReplan(hero, world, hasCrisis)) return;
-  const fallback = evaluateActions(hero, world)[0];
+  const fallback = fallbackAction(hero, world);
   const replacement = insertReplan(hero, world, fallback, 'replan', 'плановый блок стал недоступен');
   startActivity(hero, world, replacement, fallback);
 };
@@ -266,6 +286,7 @@ export const advanceSimulation = (state: WorldState, steps = 1): WorldState => {
     ensureDailyPlans(world);
     Object.values(world.heroes).forEach(evolveHero);
     advanceExpeditions(world);
+    advanceSocialScenes(world);
     Object.values(world.heroes).forEach((hero) => progressHero(hero, world));
   }
   return world;
