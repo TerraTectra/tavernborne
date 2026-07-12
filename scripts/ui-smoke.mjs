@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
+const testUrl = process.env.TEST_URL ?? 'http://127.0.0.1:4173/tavernborne/';
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1700, height: 1100 }, acceptDownloads: true });
 const pageErrors = [];
@@ -19,8 +20,8 @@ const advanceHour = async (wait = 100) => {
 };
 
 try {
-  console.log('Opening seeded social RTS simulation...');
-  await page.goto('http://127.0.0.1:4173/tavernborne/', { waitUntil: 'domcontentloaded' });
+  console.log(`Opening seeded social RTS simulation at ${testUrl}...`);
+  await page.goto(testUrl, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => window.localStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: 'Живая кибитка' }).waitFor();
