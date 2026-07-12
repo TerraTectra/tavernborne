@@ -63,9 +63,11 @@ jobs:
           cat /tmp/tavernborne-preview.log
           exit 1
 
-      - name: Test RTS interface in Chromium
+      - name: Test public GitHub Pages in Chromium
         id: browser_test
         shell: bash
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
         run: |
           set +e
           node scripts/ui-smoke.mjs 2>&1 | tee ui-smoke-output.log
