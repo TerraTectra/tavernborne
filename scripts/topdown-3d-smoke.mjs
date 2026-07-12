@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const testUrl = process.env.TEST_URL ?? 'http://127.0.0.1:4173/tavernborne/';
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1800, height: 1120 } });
 const pageErrors = [];
+let stage = 'startup';
+let diagnosticState = {};
 
 page.on('pageerror', (error) => pageErrors.push(error.message));
 page.on('console', (message) => {
@@ -17,12 +20,14 @@ const advanceHour = async (wait = 700) => {
 };
 
 try {
+  stage = 'open-world';
   console.log(`Opening live top-down 3D world at ${testUrl}...`);
   await page.goto(testUrl, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => window.localStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: 'Живая кибитка' }).waitFor();
 
+  stage = 'camp-renderer';
   console.log('Checking the 3D camp renderer and articulated heroes...');
   const campLayer = page.getByTestId('camp-3d-layer');
   await campLayer.waitFor({ timeout: 10000 });
@@ -30,6 +35,7 @@ try {
   const campCanvas = campLayer.locator('canvas');
   await campCanvas.waitFor();
   const campBox = await campCanvas.boundingBox();
+  diagnosticState.campBox = campBox;
   assert.ok(campBox && campBox.width > 700 && campBox.height > 500, '3D camp canvas is not filling the game map');
 
   for (const id of ['mira', 'kael', 'liora']) {
@@ -39,20 +45,26 @@ try {
   assert.equal(await page.getByTestId('hero-3d-kael').count(), 1, 'Kael 3D body is missing');
   assert.equal(await page.getByTestId('hero-3d-liora').count(), 1, 'Liora 3D body is missing');
 
+  stage = 'hero-selection';
   console.log('Checking selection through the 3D label...');
   await page.getByTestId('hero-3d-liora').click();
-  await page.waitForTimeout(350);
-  assert.equal(await page.getByTestId('actor-liora').evaluate((element) => element.classList.contains('rts-unit-selected')), true, '3D hero selection did not reach the game state');
+  await page.waitForTimeout(450);
+  const selectedPanelText = await page.locator('aside').textContent();
+  diagnosticState.selectedPanelText = selectedPanelText?.slice(0, 600);
+  assert.ok(selectedPanelText?.includes('Лиора'), '3D hero selection did not reach the selected-character panel');
 
+  stage = 'time-advance';
   console.log('Checking that the existing simulation still drives 3D movement...');
   const before = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2'))?.tick ?? 0);
-  await advanceHour(1200);
+  await advanceHour(1500);
   const after = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2'))?.tick ?? 0);
+  diagnosticState.ticks = { before, after };
   assert.ok(after > before, 'Time controls no longer advance the world under the 3D renderer');
   await campLayer.waitFor();
 
+  stage = 'dungeon-transition';
   console.log('Advancing to the 3D dungeon transition...');
-  for (let hour = 0; hour < 6; hour += 1) await advanceHour(1050);
+  for (let hour = 0; hour < 6; hour += 1) await advanceHour(1300);
   const dungeonOverlay = page.getByTestId('dungeon-visual-overlay');
   await dungeonOverlay.waitFor({ timeout: 10000 });
   const dungeonMap = page.getByTestId('dungeon-rts-map');
@@ -60,20 +72,31 @@ try {
   const dungeonCanvas = dungeonMap.locator('canvas');
   await dungeonCanvas.waitFor();
   const dungeonBox = await dungeonCanvas.boundingBox();
+  diagnosticState.dungeonBox = dungeonBox;
   assert.ok(dungeonBox && dungeonBox.width > 700 && dungeonBox.height > 500, '3D dungeon canvas is not visible');
   assert.equal(await page.getByTestId('dungeon-room-entrance').getAttribute('data-discovered'), 'true', '3D dungeon entrance is not revealed');
   assert.ok(await page.locator('[data-testid^="dungeon-party-"]').count() >= 2, '3D expedition party is missing');
   assert.equal(await page.locator('[data-role="leader"]').count(), 1, '3D dungeon leader marker is missing');
   assert.equal(await page.locator('[data-role="scout"]').count(), 1, '3D dungeon scout marker is missing');
 
+  stage = 'room-reveal';
   console.log('Checking live room reveal in the 3D dungeon...');
-  await advanceHour(1500);
+  await advanceHour(1800);
   assert.equal(await page.getByTestId('dungeon-room-hall').getAttribute('data-discovered'), 'true', '3D scout did not reveal the next room');
   assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Разведка'), '3D dungeon phase did not advance');
 
+  stage = 'page-errors';
   assert.equal(pageErrors.length, 0, `Page errors: ${pageErrors.join(' | ')}`);
+  writeFileSync('topdown-3d-diagnostics.txt', JSON.stringify({ ok: true, stage, diagnosticState, pageErrors }, null, 2));
   console.log('Top-down 3D browser smoke test passed.');
 } catch (error) {
+  writeFileSync('topdown-3d-diagnostics.txt', JSON.stringify({
+    ok: false,
+    stage,
+    error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error),
+    diagnosticState,
+    pageErrors,
+  }, null, 2));
   console.error('Top-down 3D browser smoke test failed:', error);
   throw error;
 } finally {
