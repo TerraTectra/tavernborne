@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ActionId, Hero, WorldState } from '../simulation';
+import {
+  visualDirectiveForHero,
+  type ActionId,
+  type Hero,
+  type VisualGesture,
+  type VisualProp,
+  type WorldState,
+} from '../simulation';
 
 export type Point = { x: number; y: number };
 export type Facing = 'left' | 'right' | 'up' | 'down';
@@ -15,6 +22,11 @@ export interface RuntimeActor {
   actionKey: string;
   route: Point[];
   bubble?: string;
+  sceneId?: string;
+  gesture?: VisualGesture;
+  roleLabel?: string;
+  reaction?: string;
+  sceneProp?: VisualProp;
 }
 
 const initialPositions: Record<string, Point> = {
@@ -56,12 +68,8 @@ const routeFor = (from: Point, destination: Point): Point[] => {
   const crossesLowerHalf = from.y > 70 || destination.y > 70;
   const crossesSides = (from.x < 35 && destination.x > 65) || (from.x > 65 && destination.x < 35);
 
-  if (crossesSides || Math.abs(from.x - destination.x) > 30) {
-    route.push({ x: 50, y: 37 });
-  }
-  if (crossesLowerHalf) {
-    route.push({ x: 50, y: 72 });
-  }
+  if (crossesSides || Math.abs(from.x - destination.x) > 30) route.push({ x: 50, y: 37 });
+  if (crossesLowerHalf) route.push({ x: 50, y: 72 });
   route.push(destination);
 
   return route.filter((point, index) => index === 0 || distance(point, route[index - 1]) > 1);
@@ -115,6 +123,14 @@ const createRuntime = (world: WorldState): Record<string, RuntimeActor> =>
     return result;
   }, {});
 
+const clearScenePresentation = (actor: RuntimeActor): void => {
+  actor.sceneId = undefined;
+  actor.gesture = undefined;
+  actor.roleLabel = undefined;
+  actor.reaction = undefined;
+  actor.sceneProp = undefined;
+};
+
 export const useRealtimeActors = (world: WorldState, speedMultiplier: number) => {
   const worldRef = useRef(world);
   const speedRef = useRef(speedMultiplier);
@@ -139,13 +155,60 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
             route: actor.route.map((point) => ({ ...point })),
           }]),
         ) as Record<string, RuntimeActor>;
-        const heroes = Object.values(worldRef.current.heroes);
+        const currentWorld = worldRef.current;
+        const heroes = Object.values(currentWorld.heroes);
 
         heroes.forEach((hero, index) => {
-          const actor = next[hero.id] ?? createRuntime(worldRef.current)[hero.id];
+          const actor = next[hero.id] ?? createRuntime(currentWorld)[hero.id];
           next[hero.id] = actor;
-          const action = hero.currentAction;
+          const directive = visualDirectiveForHero(currentWorld, hero.id);
 
+          if (directive) {
+            const key = `scene:${directive.sceneId}:${currentWorld.tick}:${directive.gesture}:${hero.id}`;
+            actor.sceneId = directive.sceneId;
+            actor.gesture = directive.gesture;
+            actor.roleLabel = directive.roleLabel;
+            actor.reaction = directive.reaction;
+            actor.sceneProp = directive.prop;
+            actor.actionId = directive.actionId;
+            actor.targetId = directive.targetId;
+            actor.bubble = directive.bubble;
+
+            if (actor.actionKey !== key) {
+              actor.actionKey = key;
+              actor.route = routeFor(actor.position, directive.position);
+              actor.phase = 'moving';
+            }
+
+            const waypoint = actor.route[0];
+            if (!waypoint) {
+              actor.phase = directive.phase;
+              if (directive.targetId) {
+                const target = next[directive.targetId];
+                if (target) actor.facing = facingFor(actor.position, target.position);
+              }
+              return;
+            }
+
+            const remaining = distance(actor.position, waypoint);
+            if (remaining < 0.7) {
+              actor.position = { ...waypoint };
+              actor.route.shift();
+              actor.phase = actor.route.length ? 'moving' : directive.phase;
+              return;
+            }
+
+            actor.phase = 'moving';
+            actor.facing = facingFor(actor.position, waypoint);
+            const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current);
+            const step = Math.min(remaining, unitsPerSecond * dt);
+            actor.position.x += ((waypoint.x - actor.position.x) / remaining) * step;
+            actor.position.y += ((waypoint.y - actor.position.y) / remaining) * step;
+            return;
+          }
+
+          clearScenePresentation(actor);
+          const action = hero.currentAction;
           if (!action) {
             actor.phase = 'idle';
             actor.actionId = undefined;
@@ -156,7 +219,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
             return;
           }
 
-          const activityStartedAt = hero.currentActivity?.startedAt ?? worldRef.current.tick;
+          const activityStartedAt = hero.currentActivity?.startedAt ?? currentWorld.tick;
           const key = `${activityStartedAt}:${action.actionId}:${action.targetId ?? ''}`;
           const destination = actionDestination(hero, index, next);
           const dynamicSocialTarget = socialActions.has(action.actionId) && Boolean(action.targetId);
