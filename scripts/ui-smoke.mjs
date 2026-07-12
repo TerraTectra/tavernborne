@@ -27,8 +27,8 @@ const advanceHour = async (wait = 80) => {
 };
 
 try {
-  console.log('Opening planned RTS simulation...');
-  await page.goto('http://127.0.0.1:4173/tavernborne/', { waitUntil: 'domcontentloaded' });
+  console.log('Opening deployed GitHub Pages simulation...');
+  await page.goto('https://terratectra.github.io/tavernborne/', { waitUntil: 'networkidle' });
   await page.getByRole('heading', { name: 'Живая кибитка' }).waitFor();
   await page.getByTestId('rts-map').waitFor();
   await page.getByTestId('day-plan').waitFor();
@@ -127,9 +127,9 @@ try {
   assert.ok(journalText?.includes('Астер похвалил'), 'Событие не появилось в журнале');
   assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
 
-  console.log('Planned life and dungeon browser smoke test passed.');
+  console.log('Deployed GitHub Pages simulation passed the full browser smoke test.');
 } catch (error) {
-  console.error('Planned life and dungeon browser smoke test failed:', error);
+  console.error('Deployed GitHub Pages smoke test failed:', error);
   throw error;
 } finally {
   await page.screenshot({ path: 'rts-smoke.png', fullPage: true }).catch(() => undefined);
