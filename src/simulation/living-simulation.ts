@@ -1,6 +1,7 @@
 import { cloneWorld } from './internal';
 import { advanceLifeScenes, lifeDirectiveForHero, prepareLifeScenes } from './life-scenes';
-import type { WorldState } from './model';
+import type { ActionId, WorldState } from './model';
+import { advancePhysicalBodies, type BodyActionMap } from './physical-body';
 import {
   advanceLivingSimulation as advanceExpeditionVisualSimulation,
   visualDirectiveForHero as expeditionVisualDirectiveForHero,
@@ -10,8 +11,15 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
   let world = state;
   for (let step = 0; step < steps; step += 1) {
     const prepared = cloneWorld(world, world.tick);
+    const previousActions: BodyActionMap = Object.fromEntries(
+      Object.values(prepared.heroes).map((hero) => [
+        hero.id,
+        hero.currentActivity?.actionId as ActionId | undefined,
+      ]),
+    );
     prepareLifeScenes(prepared, prepared.tick + 1);
     world = advanceExpeditionVisualSimulation(prepared, 1);
+    advancePhysicalBodies(world, 1, previousActions);
     advanceLifeScenes(world);
   }
   return world;
