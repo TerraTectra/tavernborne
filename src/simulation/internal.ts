@@ -9,6 +9,7 @@ import type {
   WorldState,
 } from './model';
 import { advanceLeadership } from './leadership';
+import { clonePhysicalBody } from './physical-body';
 
 export const clamp = (value: number, min = 0, max = 100): number =>
   Math.max(min, Math.min(max, value));
@@ -38,6 +39,7 @@ export const cloneHero = (hero: Hero): Hero => ({
   needs: { ...hero.needs },
   psyche: { ...hero.psyche },
   stats: { ...hero.stats },
+  body: clonePhysicalBody(hero.body),
   condition: { ...hero.condition },
   inventory: hero.inventory.map((item) => ({ ...item })),
   goals: hero.goals.map((goal) => ({ ...goal, tags: [...goal.tags] })),
