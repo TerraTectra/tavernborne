@@ -21,6 +21,11 @@ const actorPosition = async (heroId) => {
 const actorAttribute = (heroId, attribute) =>
   page.getByTestId(`actor-${heroId}`).getAttribute(attribute);
 
+const advanceHour = async (wait = 80) => {
+  await page.getByRole('button', { name: '+1 час', exact: true }).click();
+  await page.waitForTimeout(wait);
+};
+
 try {
   console.log('Opening planned RTS simulation...');
   await page.goto('http://127.0.0.1:4173/tavernborne/', { waitUntil: 'domcontentloaded' });
@@ -44,8 +49,7 @@ try {
   const positionsBefore = await Promise.all(['mira', 'kael', 'liora'].map(actorPosition));
 
   console.log('Checking synchronized breakfast...');
-  await page.getByRole('button', { name: '+1 час', exact: true }).click();
-  await page.waitForTimeout(1700);
+  await advanceHour(1700);
   const breakfastActions = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-action')));
   assert.deepEqual(breakfastActions, ['eat', 'eat', 'eat'], 'Семья не собралась на общий завтрак');
   assert.equal(await page.locator('.rts-bowl').count(), 3, 'Не показано совместное принятие пищи');
@@ -57,23 +61,54 @@ try {
   assert.ok(moved, 'Персонажи не пошли выполнять план');
 
   console.log('Advancing to dungeon departure...');
-  await page.getByRole('button', { name: '+1 час', exact: true }).click();
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: '+1 час', exact: true }).click();
-  await page.waitForTimeout(2600);
+  await advanceHour(500);
+  await advanceHour(2600);
 
   const phasesAtDeparture = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-phase')));
   assert.ok(phasesAtDeparture.filter((phase) => phase === 'away').length >= 2, 'Участники похода не покинули карту');
+
   const dungeonTextAtDeparture = await page.getByTestId('dungeon-panel').textContent();
   assert.ok(dungeonTextAtDeparture?.includes('В подземелье'), 'Экспедиция не перешла в активное состояние');
   assert.ok(dungeonTextAtDeparture?.includes('покинули кибитку'), 'Не создано событие входа в подземелье');
 
+  const planAtDeparture = await page.getByTestId('day-plan').textContent();
+  assert.ok(
+    planAtDeparture?.includes('Собрать снаряжение') && planAtDeparture?.includes('выполнено'),
+    'Подготовка не была завершена перед походом',
+  );
+  assert.ok(
+    planAtDeparture?.includes('Поход на 1-й этаж') && planAtDeparture?.includes('сейчас'),
+    'Блок похода не стал активным',
+  );
+
   console.log('Checking living dungeon event...');
-  await page.getByRole('button', { name: '+1 час', exact: true }).click();
+  await advanceHour();
   const dungeonTextAfterEvent = await page.getByTestId('dungeon-panel').textContent();
   assert.ok(
     ['бой', 'проход', 'находк', 'паёк', 'доверие', 'монстр'].some((fragment) => dungeonTextAfterEvent?.toLowerCase().includes(fragment)),
     'Подземелье не создало содержательное событие',
+  );
+
+  console.log('Advancing expedition to its planned return...');
+  for (let hour = 0; hour < 6; hour += 1) {
+    await advanceHour();
+  }
+  await page.waitForTimeout(2600);
+
+  const dungeonTextOnReturn = await page.getByTestId('dungeon-panel').textContent();
+  assert.ok(
+    dungeonTextOnReturn?.includes('Завершён') || dungeonTextOnReturn?.includes('Отступление'),
+    'Экспедиция не завершилась или не отступила',
+  );
+  assert.ok(dungeonTextOnReturn?.includes('вернул'), 'Нет события возвращения группы');
+
+  const phasesAfterReturn = await Promise.all(['mira', 'kael'].map((id) => actorAttribute(id, 'data-phase')));
+  assert.ok(phasesAfterReturn.every((phase) => phase !== 'away'), 'Герои не вернулись на карту кибитки');
+
+  const planAfterReturn = await page.getByTestId('day-plan').textContent();
+  assert.ok(
+    planAfterReturn?.includes('Поход на 1-й этаж') && planAfterReturn?.includes('выполнено'),
+    'Завершённый поход не закрыт в плане дня',
   );
 
   console.log('Opening veiled personality model...');
