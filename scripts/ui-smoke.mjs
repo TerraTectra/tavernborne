@@ -11,7 +11,8 @@ page.on('console', (message) => {
 });
 
 try {
-  await page.goto('http://127.0.0.1:4173/tavernborne/', { waitUntil: 'networkidle' });
+  console.log('Opening RTS page...');
+  await page.goto('http://127.0.0.1:4173/tavernborne/', { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: 'Наблюдение за семьёй' }).waitFor();
 
   const bodyBefore = await page.textContent('body');
@@ -19,20 +20,28 @@ try {
     assert.ok(bodyBefore?.includes(name), `Не найден персонаж: ${name}`);
   }
 
-  await page.getByRole('button', { name: '+1 час' }).click();
-  await page.getByText('Сейчас делает').waitFor();
-  await page.getByRole('button', { name: 'Похвалить' }).click();
-  await page.getByRole('button', { name: 'Запустить' }).click();
+  console.log('Advancing one hour...');
+  await page.getByRole('button', { name: '+1 час', exact: true }).click();
+  await page.getByText('Сейчас делает', { exact: true }).waitFor();
+
+  console.log('Applying praise event...');
+  await page.getByRole('button', { name: 'Похвалить', exact: true }).click();
+
+  console.log('Running automatic time...');
+  await page.getByRole('button', { name: 'Запустить', exact: true }).click();
   await page.waitForTimeout(1700);
-  await page.getByRole('button', { name: 'Пауза' }).click();
+  await page.getByRole('button', { name: 'Пауза', exact: true }).click();
 
   const bodyAfter = await page.textContent('body');
   assert.ok(bodyAfter?.includes('Последние события'), 'Не найден журнал событий');
   assert.ok(bodyAfter?.includes('Астер похвалил'), 'Похвала не появилась в журнале');
   assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
 
-  await page.screenshot({ path: 'rts-smoke.png', fullPage: true });
   console.log('RTS browser smoke test passed.');
+} catch (error) {
+  console.error('RTS browser smoke test failed:', error);
+  throw error;
 } finally {
+  await page.screenshot({ path: 'rts-smoke.png', fullPage: true }).catch(() => undefined);
   await browser.close();
 }
