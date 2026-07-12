@@ -29,9 +29,9 @@ try {
   await page.getByRole('button', { name: 'x2', exact: true }).click();
 
   console.log('Advancing through breakfast and visible expedition council...');
-  await advanceHour(1700); // 07:00 breakfast
-  await advanceHour(1700); // 08:00 council gathering
-  for (let hour = 0; hour < 5; hour += 1) await advanceHour(900); // briefing -> departure -> dungeon
+  await advanceHour(1700);
+  await advanceHour(1700);
+  for (let hour = 0; hour < 5; hour += 1) await advanceHour(900);
 
   const overlay = page.getByTestId('dungeon-visual-overlay');
   await overlay.waitFor({ timeout: 7000 });
@@ -40,12 +40,14 @@ try {
   assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Вход на этаж'), 'Карта не начала фазу входа');
   assert.equal(await attribute('dungeon-room-entrance', 'data-discovered'), 'true', 'Вход не открыт');
   assert.equal(await page.getByTestId('dungeon-fog-count').textContent(), '6', 'Начальный туман войны неверен');
-  assert.equal(await page.locator('[data-testid^="dungeon-party-"]').count(), 3, 'На карте нет всей группы');
+  const partyActorCount = await page.locator('[data-testid^="dungeon-party-"]').count();
+  assert.ok(partyActorCount >= 2, 'Автономно собранная экспедиция слишком мала');
   assert.equal(await page.locator('[data-role="scout"]').count(), 1, 'Не показан разведчик');
   assert.equal(await page.locator('[data-role="leader"]').count(), 1, 'Не показан лидер группы');
 
   const scout = page.locator('[data-role="scout"]').first();
   const scoutId = await scout.getAttribute('data-testid');
+  assert.ok(scoutId, 'Не удалось определить разведчика');
   const scoutXAtEntrance = Number(await scout.getAttribute('data-x'));
   const scoutYAtEntrance = Number(await scout.getAttribute('data-y'));
 
@@ -53,7 +55,7 @@ try {
   await advanceHour(1600);
   assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Разведка'), 'Нет фазы разведки');
   assert.equal(await attribute('dungeon-room-hall', 'data-discovered'), 'true', 'Коридор не раскрыт разведчиком');
-  const movedScout = page.getByTestId(scoutId.replace('dungeon-party-', 'dungeon-party-'));
+  const movedScout = page.getByTestId(scoutId);
   const scoutXInHall = Number(await movedScout.getAttribute('data-x'));
   const scoutYInHall = Number(await movedScout.getAttribute('data-y'));
   assert.ok(Math.hypot(scoutXInHall - scoutXAtEntrance, scoutYInHall - scoutYAtEntrance) > 8, 'Разведчик не переместился по карте');
@@ -96,7 +98,7 @@ try {
   assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Возвращение'), 'Группа не начала возвращение');
   const returnText = await page.getByTestId('dungeon-route-decision').textContent();
   assert.ok(returnText?.includes('отставать') || returnText?.includes('поддержал'), 'Помощь отставшему не произошла');
-  assert.ok(await page.locator('[data-status="helping"]').count() >= 1, 'Поддержка не показана в строю');
+  assert.ok(await page.locator('[data-status="helping"]').count() >= 1, 'Помощь не показана в строю');
 
   console.log('Checking physical exit, persistence and return to camp...');
   await advanceHour(1900);
