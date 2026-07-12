@@ -46,7 +46,7 @@ const relationValues = (
 
 type HeroSeed = Omit<
   Hero,
-  'memories' | 'currentAction' | 'currentActivity' | 'dailyPlan' | 'planDay' | 'lastReplanTick'
+  'memories' | 'currentAction' | 'currentActivity' | 'dailyPlan' | 'planDay' | 'lastReplanTick' | 'lastSocialTick'
 >;
 
 const createHero = (hero: HeroSeed): Hero => ({
@@ -55,9 +55,11 @@ const createHero = (hero: HeroSeed): Hero => ({
   dailyPlan: [],
   planDay: -1,
   lastReplanTick: -99,
+  lastSocialTick: -99,
 });
 
-export const createInitialWorld = (): WorldState => {
+export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
+  const normalizedSeed = seed.trim() || 'aster-family-001';
   const mira = createHero({
     id: 'mira', name: 'Мира', age: 18,
     traits: traits({ kindness: 82, friendliness: 76, empathy: 88, pride: 64, courage: 58, curiosity: 72, approvalSeeking: 61, loyalty: 84, cruelty: 12 }),
@@ -119,16 +121,20 @@ export const createInitialWorld = (): WorldState => {
   });
 
   return {
+    version: 2,
+    seed: normalizedSeed,
     tick: 6,
     god: { id: 'god', name: 'Астер', title: 'Бог путников и ремесла' },
     heroes: { mira, kael, liora },
     journal: [{
       id: 'start', tick: 6,
-      text: 'Рассвет первого дня. Семья просыпается в тесной кибитке и строит планы.',
+      text: `Рассвет первого дня. Семья просыпается и строит планы. Seed: ${normalizedSeed}.`,
       heroIds: ['mira', 'kael', 'liora'], kind: 'system',
     }],
+    socialScenes: [],
     expeditions: [],
     routine: { wakeHour: 6, breakfastHour: 7, lunchHour: 13, dinnerHour: 19, sleepHour: 23 },
+    nextSocialSceneId: 1,
     nextExpeditionId: 1,
   };
 };
