@@ -56,7 +56,9 @@ const resolveBattle = (world: WorldState, expedition: Expedition, heroes: Hero[]
     victim.condition.health = clamp(victim.condition.health - damage);
     victim.condition.injury = clamp(victim.condition.injury + damage * 0.8);
     victim.emotions.fear = clamp(victim.emotions.fear + 7);
-    defender.emotions.guilt = defender.id === victim.id ? defender.emotions.guilt : clamp(defender.emotions.guilt + 3);
+    defender.emotions.guilt = defender.id === victim.id
+      ? defender.emotions.guilt
+      : clamp(defender.emotions.guilt + 3);
     addEvent(
       world,
       expedition,
@@ -68,7 +70,12 @@ const resolveBattle = (world: WorldState, expedition: Expedition, heroes: Hero[]
       hero.emotions.inspiration = clamp(hero.emotions.inspiration + 5);
       hero.psyche.confidence = clamp(hero.psyche.confidence + 1.5);
     });
-    addLoot(expedition, { id: 'magic-stone', name: 'Магический камень', quantity: 2 + expedition.floor, category: 'loot' });
+    addLoot(expedition, {
+      id: 'magic-stone',
+      name: 'Магический камень',
+      quantity: 2 + expedition.floor,
+      category: 'loot',
+    });
     addEvent(
       world,
       expedition,
@@ -91,7 +98,12 @@ const resolveDiscovery = (world: WorldState, expedition: Expedition, heroes: Her
     hero.emotions.interest = clamp(hero.emotions.interest + 4);
     hero.emotions.joy = clamp(hero.emotions.joy + 2);
   });
-  addEvent(world, expedition, 'discovery', `${scout.name} заметил скрытый проход. ${mage.name} помог безопасно извлечь находку: ${item.name.toLowerCase()}.`);
+  addEvent(
+    world,
+    expedition,
+    'discovery',
+    `${scout.name} заметил скрытый проход. ${mage.name} помог безопасно извлечь находку: ${item.name.toLowerCase()}.`,
+  );
 };
 
 const resolveBond = (world: WorldState, expedition: Expedition, heroes: Hero[]): void => {
@@ -104,7 +116,13 @@ const resolveBond = (world: WorldState, expedition: Expedition, heroes: Hero[]):
   changeRelationship(second, first.id, 'closeness', 1.5);
   first.needs.social = clamp(first.needs.social - 8);
   second.needs.social = clamp(second.needs.social - 8);
-  addEvent(world, expedition, 'bond', `${first.name} и ${second.name} прикрыли друг друга в узком проходе. Взаимное доверие укрепилось.`, [first.id, second.id]);
+  addEvent(
+    world,
+    expedition,
+    'bond',
+    `${first.name} и ${second.name} прикрыли друг друга в узком проходе. Взаимное доверие укрепилось.`,
+    [first.id, second.id],
+  );
 };
 
 const resolveRest = (world: WorldState, expedition: Expedition, heroes: Hero[]): void => {
@@ -113,14 +131,21 @@ const resolveRest = (world: WorldState, expedition: Expedition, heroes: Hero[]):
     hero.needs.fatigue = clamp(hero.needs.fatigue - 8);
     hero.psyche.stress = clamp(hero.psyche.stress - 4);
   });
-  addEvent(world, expedition, 'rest', 'Группа нашла защищённую нишу, разделила паёк и сверила дальнейший маршрут.');
+  addEvent(
+    world,
+    expedition,
+    'rest',
+    'Группа нашла защищённую нишу, разделила паёк и сверила дальнейший маршрут.',
+  );
 };
 
 const completeExpedition = (world: WorldState, expedition: Expedition, retreated: boolean): void => {
   const heroes = party(world, expedition);
   expedition.status = retreated ? 'retreated' : 'completed';
   expedition.progress = 100;
-  expedition.outcome = retreated ? 'Группа отступила, сохранив жизни.' : 'Группа вернулась по плану.';
+  expedition.outcome = retreated
+    ? 'Группа отступила, сохранив жизни.'
+    : 'Группа вернулась по плану.';
 
   expedition.loot.forEach((item, index) => {
     const receiver = heroes[index % heroes.length];
@@ -128,6 +153,10 @@ const completeExpedition = (world: WorldState, expedition: Expedition, retreated
   });
 
   heroes.forEach((hero) => {
+    const expeditionBlock = hero.dailyPlan.find((block) =>
+      block.expeditionId === expedition.id && block.actionId === 'dungeon');
+    if (expeditionBlock) expeditionBlock.status = 'done';
+
     hero.currentActivity = undefined;
     hero.currentAction = undefined;
     hero.memories.unshift({
@@ -160,7 +189,12 @@ export const advanceExpeditions = (world: WorldState): void => {
     const heroes = party(world, expedition);
     if (expedition.status === 'planned' && world.tick >= expedition.departTick) {
       expedition.status = 'active';
-      addEvent(world, expedition, 'travel', `${heroes.map((hero) => hero.name).join(', ')} покинули кибитку и вошли в подземелье.`);
+      addEvent(
+        world,
+        expedition,
+        'travel',
+        `${heroes.map((hero) => hero.name).join(', ')} покинули кибитку и вошли в подземелье.`,
+      );
     }
     if (expedition.status !== 'active') return;
 
@@ -172,8 +206,14 @@ export const advanceExpeditions = (world: WorldState): void => {
       return;
     }
 
-    const averageHealth = heroes.reduce((totalHealth, hero) => totalHealth + hero.condition.health, 0) / Math.max(1, heroes.length);
-    const averageFatigue = heroes.reduce((totalFatigue, hero) => totalFatigue + hero.needs.fatigue, 0) / Math.max(1, heroes.length);
+    const averageHealth = heroes.reduce(
+      (totalHealth, hero) => totalHealth + hero.condition.health,
+      0,
+    ) / Math.max(1, heroes.length);
+    const averageFatigue = heroes.reduce(
+      (totalFatigue, hero) => totalFatigue + hero.needs.fatigue,
+      0,
+    ) / Math.max(1, heroes.length);
     if (averageHealth < 42 || averageFatigue > 92) {
       completeExpedition(world, expedition, true);
       return;
@@ -185,11 +225,21 @@ export const advanceExpeditions = (world: WorldState): void => {
     else if (roll < 0.52) resolveDiscovery(world, expedition, heroes, roll);
     else if (roll < 0.7) resolveBond(world, expedition, heroes);
     else if (roll < 0.84) resolveRest(world, expedition, heroes);
-    else addEvent(world, expedition, 'travel', `Группа осторожно продвинулась глубже по ${expedition.floor}-му этажу, не встретив серьёзной угрозы.`);
+    else {
+      addEvent(
+        world,
+        expedition,
+        'travel',
+        `Группа осторожно продвинулась глубже по ${expedition.floor}-му этажу, не встретив серьёзной угрозы.`,
+      );
+    }
   });
 };
 
-export const activeExpeditionForHero = (world: WorldState, heroId: string): Expedition | undefined =>
+export const activeExpeditionForHero = (
+  world: WorldState,
+  heroId: string,
+): Expedition | undefined =>
   world.expeditions.find((expedition) =>
     expedition.partyIds.includes(heroId)
     && (expedition.status === 'active' || expedition.status === 'returning'));
