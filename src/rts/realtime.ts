@@ -1,0 +1,200 @@
+import { useEffect, useRef, useState } from 'react';
+import type { ActionId, Hero, WorldState } from '../simulation';
+
+export type Point = { x: number; y: number };
+export type Facing = 'left' | 'right' | 'up' | 'down';
+export type ActorPhase = 'idle' | 'moving' | 'acting' | 'interacting' | 'sleeping';
+
+export interface RuntimeActor {
+  heroId: string;
+  position: Point;
+  facing: Facing;
+  phase: ActorPhase;
+  actionId?: ActionId;
+  targetId?: string;
+  actionKey: string;
+  route: Point[];
+  bubble?: string;
+}
+
+const initialPositions: Record<string, Point> = {
+  mira: { x: 44, y: 35 },
+  kael: { x: 54, y: 35 },
+  liora: { x: 49, y: 41 },
+};
+
+const fixedDestinations: Record<Exclude<ActionId, 'talk' | 'help' | 'apologize'>, Point[]> = {
+  eat: [{ x: 45, y: 24 }, { x: 49, y: 23 }, { x: 53, y: 25 }],
+  sleep: [{ x: 77, y: 19 }, { x: 84, y: 19 }, { x: 89, y: 19 }],
+  train: [{ x: 17, y: 54 }, { x: 22, y: 58 }, { x: 14, y: 61 }],
+  read: [{ x: 46, y: 55 }, { x: 51, y: 53 }, { x: 55, y: 57 }],
+  seekSolitude: [{ x: 17, y: 84 }, { x: 23, y: 85 }, { x: 28, y: 82 }],
+  work: [{ x: 77, y: 55 }, { x: 84, y: 58 }, { x: 89, y: 53 }],
+};
+
+const bubbleLabels: Record<ActionId, string> = {
+  eat: 'Наконец-то поесть…',
+  sleep: 'Мне нужно отдохнуть',
+  train: 'Ещё один подход',
+  read: 'Здесь есть что-то полезное',
+  talk: 'Надо поговорить',
+  help: 'Я помогу',
+  apologize: 'Нужно всё исправить',
+  seekSolitude: 'Хочу побыть один',
+  work: 'Пора заняться делом',
+};
+
+const socialActions = new Set<ActionId>(['talk', 'help', 'apologize']);
+
+const distance = (left: Point, right: Point) => Math.hypot(right.x - left.x, right.y - left.y);
+
+const routeFor = (from: Point, destination: Point): Point[] => {
+  const route: Point[] = [];
+  const crossesLowerHalf = from.y > 70 || destination.y > 70;
+  const crossesSides = (from.x < 35 && destination.x > 65) || (from.x > 65 && destination.x < 35);
+
+  if (crossesLowerHalf) route.push({ x: 50, y: 72 });
+  if (crossesSides || Math.abs(from.x - destination.x) > 30) route.push({ x: 50, y: 37 });
+  route.push(destination);
+
+  return route.filter((point, index) => index === 0 || distance(point, route[index - 1]) > 1);
+};
+
+const facingFor = (from: Point, to: Point): Facing => {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'left' : 'right';
+  return dy < 0 ? 'up' : 'down';
+};
+
+const actionPhase = (actionId: ActionId): ActorPhase => {
+  if (actionId === 'sleep') return 'sleeping';
+  if (socialActions.has(actionId)) return 'interacting';
+  return 'acting';
+};
+
+const actionDestination = (
+  hero: Hero,
+  actorIndex: number,
+  actors: Record<string, RuntimeActor>,
+): Point => {
+  const fallback = initialPositions[hero.id] ?? { x: 48 + actorIndex * 3, y: 39 };
+  const action = hero.currentAction;
+  if (!action) return fallback;
+
+  if (socialActions.has(action.actionId) && action.targetId) {
+    const target = actors[action.targetId];
+    if (target) {
+      const offset = actorIndex % 2 === 0 ? -3.3 : 3.3;
+      return { x: target.position.x + offset, y: target.position.y + 0.8 };
+    }
+  }
+
+  const destinations = fixedDestinations[action.actionId as keyof typeof fixedDestinations];
+  return destinations?.[actorIndex % destinations.length] ?? fallback;
+};
+
+const createRuntime = (world: WorldState): Record<string, RuntimeActor> =>
+  Object.values(world.heroes).reduce<Record<string, RuntimeActor>>((result, hero, index) => {
+    result[hero.id] = {
+      heroId: hero.id,
+      position: initialPositions[hero.id] ?? { x: 45 + index * 4, y: 38 },
+      facing: 'down',
+      phase: 'idle',
+      actionKey: 'idle',
+      route: [],
+    };
+    return result;
+  }, {});
+
+export const useRealtimeActors = (world: WorldState, speedMultiplier: number) => {
+  const worldRef = useRef(world);
+  const speedRef = useRef(speedMultiplier);
+  const [actors, setActors] = useState<Record<string, RuntimeActor>>(() => createRuntime(world));
+
+  useEffect(() => {
+    worldRef.current = world;
+  }, [world]);
+
+  useEffect(() => {
+    speedRef.current = speedMultiplier;
+  }, [speedMultiplier]);
+
+  useEffect(() => {
+    let previous = performance.now();
+    let frame = 0;
+
+    const update = (now: number) => {
+      const dt = Math.min(0.08, (now - previous) / 1000);
+      previous = now;
+
+      setActors((current) => {
+        const next = Object.fromEntries(
+          Object.entries(current).map(([id, actor]) => [id, { ...actor, position: { ...actor.position }, route: actor.route.map((point) => ({ ...point })) }]),
+        ) as Record<string, RuntimeActor>;
+        const heroes = Object.values(worldRef.current.heroes);
+
+        heroes.forEach((hero, index) => {
+          const actor = next[hero.id] ?? createRuntime(worldRef.current)[hero.id];
+          next[hero.id] = actor;
+          const action = hero.currentAction;
+
+          if (!action) {
+            actor.phase = 'idle';
+            actor.actionId = undefined;
+            actor.targetId = undefined;
+            actor.bubble = undefined;
+            actor.route = [];
+            actor.actionKey = 'idle';
+            return;
+          }
+
+          const key = `${worldRef.current.tick}:${action.actionId}:${action.targetId ?? ''}`;
+          const destination = actionDestination(hero, index, next);
+          const dynamicSocialTarget = socialActions.has(action.actionId) && Boolean(action.targetId);
+
+          if (actor.actionKey !== key) {
+            actor.actionKey = key;
+            actor.actionId = action.actionId;
+            actor.targetId = action.targetId;
+            actor.bubble = bubbleLabels[action.actionId];
+            actor.route = routeFor(actor.position, destination);
+            actor.phase = 'moving';
+          } else if (dynamicSocialTarget && actor.phase === 'moving') {
+            actor.route = [destination];
+          }
+
+          const waypoint = actor.route[0];
+          if (!waypoint) {
+            actor.phase = actionPhase(action.actionId);
+            return;
+          }
+
+          const remaining = distance(actor.position, waypoint);
+          if (remaining < 0.7) {
+            actor.position = { ...waypoint };
+            actor.route.shift();
+            actor.phase = actor.route.length ? 'moving' : actionPhase(action.actionId);
+            return;
+          }
+
+          actor.phase = 'moving';
+          actor.facing = facingFor(actor.position, waypoint);
+          const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current);
+          const step = Math.min(remaining, unitsPerSecond * dt);
+          actor.position.x += ((waypoint.x - actor.position.x) / remaining) * step;
+          actor.position.y += ((waypoint.y - actor.position.y) / remaining) * step;
+        });
+
+        return next;
+      });
+
+      frame = requestAnimationFrame(update);
+    };
+
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return actors;
+};
