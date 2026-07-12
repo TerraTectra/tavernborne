@@ -21,6 +21,7 @@ export function DungeonExplorationOverlay() {
 
   const expedition = useMemo(() => activeDungeon(world), [world]);
   if (!world || !expedition) return null;
+  const exploration = dungeonExplorationOf(expedition);
 
   return (
     <div
@@ -28,6 +29,11 @@ export function DungeonExplorationOverlay() {
       data-testid="dungeon-visual-overlay"
     >
       <DungeonWorld3D world={world} expedition={expedition} />
+      <div className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0" aria-hidden="true">
+        {exploration?.trapDetected !== undefined && <span className="dungeon-trap" />}
+        {exploration?.chestOpened && <span className="dungeon-chest-open" />}
+        {exploration?.enemySpotted && <span className="dungeon-enemy" />}
+      </div>
     </div>
   );
 }
