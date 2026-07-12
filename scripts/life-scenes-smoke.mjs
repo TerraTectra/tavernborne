@@ -50,7 +50,7 @@ try {
   assert.equal(await mealPanel.count(), 0, 'Завтрак не уступил место более важному совету');
 
   console.log('Completing council and expedition...');
-  for (let hour = 0; hour < 5; hour += 1) await advanceHour(650);
+  for (let hour = 0; hour < 5; hour += 1) await advanceHour(hour === 4 ? 2800 : 650);
   const awayAtDeparture = await Promise.all(['mira', 'kael', 'liora'].map((id) =>
     page.getByTestId(`actor-${id}`).getAttribute('data-phase')));
   assert.ok(awayAtDeparture.filter((phase) => phase === 'away').length >= 2, 'Группа не вышла после визуального совета');
