@@ -79,6 +79,8 @@ export type ActionId =
   | 'dungeon'
   | 'recover';
 
+export type SocialActionId = Extract<ActionId, 'talk' | 'help' | 'apologize'>;
+
 export type EventType =
   | 'praise'
   | 'insult'
@@ -108,7 +110,7 @@ export interface Memory {
   valence: number;
   participants: string[];
   tags: string[];
-  sourceEventType: EventType | 'action' | 'dungeon';
+  sourceEventType: EventType | 'action' | 'dungeon' | 'social';
 }
 
 export interface Relationship {
@@ -144,6 +146,7 @@ export interface PlanBlock {
   targetId?: string;
   groupId?: string;
   expeditionId?: string;
+  socialSceneId?: string;
   reason?: string;
 }
 
@@ -157,6 +160,7 @@ export interface ActivityState {
   targetId?: string;
   planBlockId?: string;
   expeditionId?: string;
+  socialSceneId?: string;
 }
 
 export interface InventoryItem {
@@ -188,6 +192,7 @@ export interface Hero {
   dailyPlan: PlanBlock[];
   planDay: number;
   lastReplanTick: number;
+  lastSocialTick: number;
   currentActivity?: ActivityState;
   currentAction?: ActionScore;
 }
@@ -207,7 +212,33 @@ export interface JournalEntry {
   tick: number;
   text: string;
   heroIds: string[];
-  kind: 'event' | 'decision' | 'system' | 'dungeon';
+  kind: 'event' | 'decision' | 'system' | 'dungeon' | 'social';
+}
+
+export interface SocialLine {
+  id: string;
+  tick: number;
+  speakerId: string;
+  text: string;
+  tone: 'warm' | 'neutral' | 'awkward' | 'tense' | 'apologetic';
+}
+
+export type SocialResponse = 'accepted' | 'deferred' | 'refused';
+export type SocialSceneStatus = 'active' | 'resolved';
+
+export interface SocialScene {
+  id: string;
+  actionId: SocialActionId;
+  initiatorId: string;
+  targetId: string;
+  createdAt: number;
+  status: SocialSceneStatus;
+  response: SocialResponse;
+  remainingHours: number;
+  planBlockIds: string[];
+  lines: SocialLine[];
+  reason: string;
+  outcome?: string;
 }
 
 export interface DungeonEvent {
@@ -248,11 +279,15 @@ export interface God {
 }
 
 export interface WorldState {
+  version: number;
+  seed: string;
   tick: number;
   god: God;
   heroes: Record<string, Hero>;
   journal: JournalEntry[];
+  socialScenes: SocialScene[];
   expeditions: Expedition[];
   routine: FamilyRoutine;
+  nextSocialSceneId: number;
   nextExpeditionId: number;
 }
