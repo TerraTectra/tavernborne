@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SimulationLab } from './lab/SimulationLab';
+import { DungeonExplorationOverlay } from './rts/DungeonExplorationOverlay';
 import { LeadershipOverlay } from './rts/LeadershipOverlay';
 import { LifeSceneOverlay } from './rts/LifeSceneOverlay';
 import { RTSGameV2 } from './rts/RTSGameV2';
@@ -47,6 +48,7 @@ export default function TavernbornePreview() {
       {viewMode === 'camp' && (
         <>
           <RTSGameV2 />
+          <DungeonExplorationOverlay />
           <LifeSceneOverlay />
           <VisualSceneOverlay />
           <LeadershipOverlay />
