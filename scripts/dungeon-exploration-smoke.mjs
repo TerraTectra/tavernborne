@@ -15,8 +15,13 @@ const advanceHour = async (wait = 320) => {
   await page.getByRole('button', { name: '+1 час', exact: true }).click();
   await page.waitForTimeout(wait);
 };
-
 const attribute = (testId, name) => page.getByTestId(testId).getAttribute(name);
+const waitPhase = async (text) => {
+  await page.getByTestId('dungeon-phase').filter({ hasText: text }).waitFor({ timeout: 7000 });
+};
+const waitDiscovered = async (roomId) => {
+  await page.waitForFunction((id) => document.querySelector(`[data-testid="dungeon-room-${id}"]`)?.getAttribute('data-discovered') === 'true', roomId, { timeout: 7000 });
+};
 
 try {
   console.log(`Opening visual dungeon exploration at ${testUrl}...`);
@@ -31,13 +36,13 @@ try {
   console.log('Advancing through breakfast and visible expedition council...');
   await advanceHour(1700);
   await advanceHour(1700);
-  for (let hour = 0; hour < 5; hour += 1) await advanceHour(900);
+  for (let hour = 0; hour < 5; hour += 1) await advanceHour(1000);
 
   const overlay = page.getByTestId('dungeon-visual-overlay');
   await overlay.waitFor({ timeout: 7000 });
   const map = page.getByTestId('dungeon-rts-map');
   await map.waitFor();
-  assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Вход на этаж'), 'Карта не начала фазу входа');
+  await waitPhase('Вход на этаж');
   assert.equal(await attribute('dungeon-room-entrance', 'data-discovered'), 'true', 'Вход не открыт');
   assert.equal(await page.getByTestId('dungeon-fog-count').textContent(), '6', 'Начальный туман войны неверен');
   const partyActorCount = await page.locator('[data-testid^="dungeon-party-"]').count();
@@ -52,23 +57,25 @@ try {
   const scoutYAtEntrance = Number(await scout.getAttribute('data-y'));
 
   console.log('Checking formation movement and fog reveal...');
-  await advanceHour(1600);
-  assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Разведка'), 'Нет фазы разведки');
-  assert.equal(await attribute('dungeon-room-hall', 'data-discovered'), 'true', 'Коридор не раскрыт разведчиком');
+  await advanceHour(400);
+  await waitPhase('Разведка');
+  await waitDiscovered('hall');
   const movedScout = page.getByTestId(scoutId);
   const scoutXInHall = Number(await movedScout.getAttribute('data-x'));
   const scoutYInHall = Number(await movedScout.getAttribute('data-y'));
   assert.ok(Math.hypot(scoutXInHall - scoutXAtEntrance, scoutYInHall - scoutYAtEntrance) > 8, 'Разведчик не переместился по карте');
 
   console.log('Checking autonomous route choice...');
-  await advanceHour(1500);
-  assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Выбор маршрута'), 'Лидер не выбирает маршрут');
-  assert.equal(await attribute('dungeon-room-fork', 'data-discovered'), 'true', 'Развилка не раскрыта');
+  await advanceHour(400);
+  await waitPhase('Выбор маршрута');
+  await waitDiscovered('fork');
   const routeDecision = await page.getByTestId('dungeon-route-decision').textContent();
   assert.ok(routeDecision?.includes('маршрут:'), 'Выбранный маршрут не показан');
 
   console.log('Checking trap or safe detour...');
-  await advanceHour(1500);
+  await advanceHour(400);
+  await waitPhase('Преодоление');
+  await page.waitForFunction(() => document.querySelector('[data-testid="dungeon-room-trap"]')?.getAttribute('data-discovered') === 'true' || document.querySelector('[data-testid="dungeon-room-refuge"]')?.getAttribute('data-discovered') === 'true', undefined, { timeout: 7000 });
   const trapDiscovered = await attribute('dungeon-room-trap', 'data-discovered') === 'true';
   const refugeDiscovered = await attribute('dungeon-room-refuge', 'data-discovered') === 'true';
   assert.ok(trapDiscovered || refugeDiscovered, 'Группа не прошла ни один маршрут');
@@ -78,31 +85,31 @@ try {
   }
 
   console.log('Checking chest discovery and visual looting...');
-  await advanceHour(1500);
-  assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Осмотр находки'), 'Нет фазы осмотра находки');
-  assert.equal(await attribute('dungeon-room-cache', 'data-discovered'), 'true', 'Кладовая не раскрыта');
+  await advanceHour(400);
+  await waitPhase('Осмотр находки');
+  await waitDiscovered('cache');
   assert.ok(await page.locator('.dungeon-chest-open').count() >= 1, 'Сундук не открыт визуально');
   assert.ok((await page.getByTestId('dungeon-route-decision').textContent())?.includes('сундук открыт'), 'Находка не отражена в решении группы');
 
   console.log('Checking enemy assessment without combat...');
-  await advanceHour(1500);
-  assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Оценка угрозы'), 'Нет оценки угрозы');
-  assert.equal(await attribute('dungeon-room-enemy', 'data-discovered'), 'true', 'Комната врага не раскрыта');
+  await advanceHour(400);
+  await waitPhase('Оценка угрозы');
+  await waitDiscovered('enemy');
   assert.ok(await page.locator('.dungeon-enemy').count() >= 1, 'Страж не показан на карте');
   const threatDecision = await page.getByTestId('dungeon-route-decision').textContent();
   assert.ok(threatDecision?.includes('решение: обойти') || threatDecision?.includes('решение: отступить'), 'Лидер не принял решение о враге');
   assert.ok(!threatDecision?.toLowerCase().includes('победил в бою'), 'Прототип неожиданно запустил полноценный бой');
 
   console.log('Checking return formation and help for a lagging member...');
-  await advanceHour(1500);
-  assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Возвращение'), 'Группа не начала возвращение');
+  await advanceHour(400);
+  await waitPhase('Возвращение');
   const returnText = await page.getByTestId('dungeon-route-decision').textContent();
   assert.ok(returnText?.includes('отставать') || returnText?.includes('поддержал'), 'Помощь отставшему не произошла');
   assert.ok(await page.locator('[data-status="helping"]').count() >= 1, 'Помощь не показана в строю');
 
   console.log('Checking physical exit, persistence and return to camp...');
-  await advanceHour(1900);
-  await page.getByTestId('dungeon-visual-overlay').waitFor({ state: 'detached', timeout: 7000 });
+  await advanceHour(800);
+  await page.getByTestId('dungeon-visual-overlay').waitFor({ state: 'detached', timeout: 9000 });
   const dungeonPanelText = await page.getByTestId('dungeon-panel').textContent();
   assert.ok(dungeonPanelText?.includes('Завершён') || dungeonPanelText?.includes('Отступление'), 'Экспедиция не завершилась');
 
