@@ -105,6 +105,12 @@ export const advanceExpeditions = (world: WorldState): void => {
 
     const result = advanceDungeonExploration(world, expedition);
     const exploration = dungeonExplorationOf(expedition);
+    const latestDecision = exploration?.decisions[0];
+    if (exploration && latestDecision?.kind === 'help') {
+      const helperActor = exploration.actors[latestDecision.actorId];
+      if (helperActor) helperActor.status = 'helping';
+    }
+
     if (result === 'complete' || result === 'retreat' || (exploration?.step ?? 0) >= 7) {
       completeExpedition(
         world,
