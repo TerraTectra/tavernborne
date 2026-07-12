@@ -122,8 +122,6 @@ const applyActivityHour = (hero: Hero, world: WorldState): void => {
       hero.needs.fatigue = clamp(hero.needs.fatigue - 5);
       hero.psyche.stress = clamp(hero.psyche.stress - 3);
       break;
-    case 'dungeon':
-      break;
   }
 };
 
