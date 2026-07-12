@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { SimulationLab } from './lab/SimulationLab';
 import { LeadershipOverlay } from './rts/LeadershipOverlay';
 import { RTSGameV2 } from './rts/RTSGameV2';
+import { VisualSceneOverlay } from './rts/VisualSceneOverlay';
 import './rts/rts-additions.css';
 import { VillageHub3D } from './scenes/village3d/VillageHub3D';
 
@@ -45,6 +46,7 @@ export default function TavernbornePreview() {
       {viewMode === 'camp' && (
         <>
           <RTSGameV2 />
+          <VisualSceneOverlay />
           <LeadershipOverlay />
         </>
       )}
