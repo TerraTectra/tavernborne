@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react';
-import type { Hero, WorldState } from '../simulation';
+import type { CSSProperties, ReactNode } from 'react';
+import { physicalBodyVisualProfile, type Hero, type WorldState } from '../simulation';
 import type { RuntimeActor } from './realtime';
 
 type Props = {
@@ -38,16 +38,58 @@ const actionProp = (actor: RuntimeActor) => {
   }
 };
 
+function Arm({ side, children }: { side: 'left' | 'right'; children?: ReactNode }) {
+  return (
+    <span className={`rts-arm rts-arm-${side}`} data-body-segment={`${side}UpperArm`}>
+      <span className="rts-upper-arm" />
+      <span className="rts-joint rts-elbow" />
+      <span className="rts-forearm" data-body-segment={`${side}Forearm`}>
+        <span className="rts-joint rts-wrist" />
+        <span className="rts-hand" data-body-segment={`${side}Hand`}>{children}</span>
+      </span>
+    </span>
+  );
+}
+
+function Leg({ side }: { side: 'left' | 'right' }) {
+  return (
+    <span className={`rts-leg rts-leg-${side}`} data-body-segment={`${side}Thigh`}>
+      <span className="rts-thigh" />
+      <span className="rts-joint rts-knee" />
+      <span className="rts-shin" data-body-segment={`${side}Shin`}>
+        <span className="rts-joint rts-ankle" />
+        <span className="rts-foot" data-body-segment={`${side}Foot`} />
+      </span>
+    </span>
+  );
+}
+
 export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
   const palette = palettes[hero.id] ?? palettes.mira;
   const targetName = actor.targetId ? world.heroes[actor.targetId]?.name : undefined;
   const facingScale = actor.facing === 'left' ? -1 : 1;
+  const bodyVisual = physicalBodyVisualProfile(hero.body);
   const style = {
     '--cloth': palette.cloth,
     '--trim': palette.trim,
     '--hair': palette.hair,
     '--skin': palette.skin,
     '--facing-scale': facingScale,
+    '--body-height-scale': bodyVisual.heightScale,
+    '--shoulder-scale': bodyVisual.shoulderScale,
+    '--hip-scale': bodyVisual.hipScale,
+    '--limb-thickness-scale': bodyVisual.limbThickness,
+    '--head-scale': bodyVisual.headScale,
+    '--stance-scale': bodyVisual.stanceScale,
+    '--body-lean': `${hero.body.pose.centerOfMass.x * 18}px`,
+    '--left-shoulder-angle': `${hero.body.joints.leftShoulder.angleDeg}deg`,
+    '--right-shoulder-angle': `${hero.body.joints.rightShoulder.angleDeg}deg`,
+    '--left-elbow-angle': `${hero.body.joints.leftElbow.angleDeg}deg`,
+    '--right-elbow-angle': `${hero.body.joints.rightElbow.angleDeg}deg`,
+    '--left-hip-angle': `${hero.body.joints.leftHip.angleDeg}deg`,
+    '--right-hip-angle': `${hero.body.joints.rightHip.angleDeg}deg`,
+    '--left-knee-angle': `${hero.body.joints.leftKnee.angleDeg}deg`,
+    '--right-knee-angle': `${hero.body.joints.rightKnee.angleDeg}deg`,
   } as CSSProperties;
 
   if (actor.phase === 'away') {
@@ -60,6 +102,8 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
         data-phase="away"
         data-action={actor.actionId ?? 'dungeon'}
         data-scene={actor.sceneId ?? ''}
+        data-height-cm={hero.body.anthropometry.heightCm}
+        data-mass-kg={hero.body.anthropometry.massKg}
         onClick={onSelect}
         className="hidden"
         aria-label={`${hero.name}: в подземелье`}
@@ -77,13 +121,17 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
       data-action={actor.actionId ?? 'idle'}
       data-scene={actor.sceneId ?? ''}
       data-gesture={actor.gesture ?? ''}
+      data-height-cm={hero.body.anthropometry.heightCm}
+      data-mass-kg={hero.body.anthropometry.massKg}
+      data-body-pose={hero.body.pose.name}
+      data-body-stability={hero.body.pose.stability.toFixed(1)}
       onClick={onSelect}
       className="absolute z-30 -translate-x-1/2 -translate-y-1/2 text-left outline-none"
       style={{ left: `${actor.position.x}%`, top: `${actor.position.y}%` }}
       aria-label={`${hero.name}: ${actor.bubble ?? hero.currentAction?.label ?? 'бездействует'}`}
     >
       {actor.bubble && actor.phase !== 'moving' && (
-        <span className="absolute bottom-[78px] left-1/2 w-max max-w-56 -translate-x-1/2 rounded-lg border border-white/10 bg-black/90 px-2.5 py-1.5 text-[10px] leading-4 text-slate-100 shadow-xl" data-testid={`actor-bubble-${hero.id}`}>
+        <span className="absolute bottom-[86px] left-1/2 w-max max-w-56 -translate-x-1/2 rounded-lg border border-white/10 bg-black/90 px-2.5 py-1.5 text-[10px] leading-4 text-slate-100 shadow-xl" data-testid={`actor-bubble-${hero.id}`}>
           {actor.bubble}{targetName && !actor.sceneId ? ` — ${targetName}` : ''}
         </span>
       )}
@@ -103,18 +151,23 @@ export function RTSActor({ hero, actor, world, selected, onSelect }: Props) {
         data-phase={actor.phase}
         data-action={actor.actionId ?? 'idle'}
         data-gesture={actor.gesture ?? ''}
+        data-testid={`physical-rig-${hero.id}`}
         style={style}
       >
         <span className="rts-shadow" />
         <span className="rts-body-wrap">
-          <span className="rts-head"><span className="rts-hair" /></span>
-          <span className="rts-torso" />
-          <span className="rts-arm rts-arm-left" />
-          <span className="rts-arm rts-arm-right">{actionProp(actor)}</span>
-          <span className="rts-leg rts-leg-left" />
-          <span className="rts-leg rts-leg-right" />
-          {actor.phase === 'sleeping' && <span className="rts-zzz">Z</span>}
-          {actor.phase === 'interacting' && !actor.sceneId && <span className="rts-talk-dots">•••</span>}
+          <span className="rts-anatomy">
+            <span className="rts-head" data-body-segment="head"><span className="rts-hair" /></span>
+            <span className="rts-neck" data-body-segment="neck" />
+            <span className="rts-torso" data-body-segment="chest"><span className="rts-abdomen" data-body-segment="abdomen" /></span>
+            <span className="rts-pelvis" data-body-segment="pelvis" />
+            <Arm side="left" />
+            <Arm side="right">{actionProp(actor)}</Arm>
+            <Leg side="left" />
+            <Leg side="right" />
+            {actor.phase === 'sleeping' && <span className="rts-zzz">Z</span>}
+            {actor.phase === 'interacting' && !actor.sceneId && <span className="rts-talk-dots">•••</span>}
+          </span>
         </span>
       </span>
 
