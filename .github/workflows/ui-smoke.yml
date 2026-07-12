@@ -64,7 +64,22 @@ jobs:
           exit 1
 
       - name: Test RTS interface in Chromium
-        run: node scripts/ui-smoke.mjs
+        id: browser_test
+        shell: bash
+        run: |
+          set +e
+          node scripts/ui-smoke.mjs 2>&1 | tee ui-smoke-output.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-diagnostics
+          path: ui-smoke-output.log
+          if-no-files-found: error
 
       - name: Upload browser screenshot
         if: always()
@@ -73,3 +88,7 @@ jobs:
           name: rts-smoke-screenshot
           path: rts-smoke.png
           if-no-files-found: ignore
+
+      - name: Stop on browser failure
+        if: steps.browser_test.outputs.status != '0'
+        run: exit 1
