@@ -1,0 +1,55 @@
+name: Verify live physical bodies
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Test public GitHub Pages with deployment retries
+        run: |
+          success=0
+          for attempt in {1..6}; do
+            echo "Public physical body attempt $attempt"
+            if TEST_URL=https://terratectra.github.io/tavernborne/ node scripts/physical-body-smoke.mjs; then
+              success=1
+              break
+            fi
+            sleep 20
+          done
+          test "$success" -eq 1
+
+      - name: Upload live diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-physical-body-diagnostics
+          path: physical-body-diagnostics.json
+          if-no-files-found: ignore
+
+      - name: Upload live screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-physical-body-screenshots
+          path: physical-body-*.png
+          if-no-files-found: ignore
