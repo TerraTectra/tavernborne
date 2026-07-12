@@ -55,9 +55,15 @@ const routeFor = (from: Point, destination: Point): Point[] => {
   const route: Point[] = [];
   const crossesLowerHalf = from.y > 70 || destination.y > 70;
   const crossesSides = (from.x < 35 && destination.x > 65) || (from.x > 65 && destination.x < 35);
-  if (crossesLowerHalf) route.push({ x: 50, y: 72 });
-  if (crossesSides || Math.abs(from.x - destination.x) > 30) route.push({ x: 50, y: 37 });
+
+  if (crossesSides || Math.abs(from.x - destination.x) > 30) {
+    route.push({ x: 50, y: 37 });
+  }
+  if (crossesLowerHalf) {
+    route.push({ x: 50, y: 72 });
+  }
   route.push(destination);
+
   return route.filter((point, index) => index === 0 || distance(point, route[index - 1]) > 1);
 };
 
@@ -83,6 +89,7 @@ const actionDestination = (
   const fallback = initialPositions[hero.id] ?? { x: 48 + actorIndex * 3, y: 39 };
   const action = hero.currentAction;
   if (!action) return fallback;
+
   if (socialActions.has(action.actionId) && action.targetId) {
     const target = actors[action.targetId];
     if (target && target.phase !== 'away') {
@@ -90,6 +97,7 @@ const actionDestination = (
       return { x: target.position.x + offset, y: target.position.y + 0.8 };
     }
   }
+
   const destinations = fixedDestinations[action.actionId as keyof typeof fixedDestinations];
   return destinations?.[actorIndex % destinations.length] ?? fallback;
 };
@@ -122,9 +130,14 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
     const update = (now: number) => {
       const dt = Math.min(0.08, (now - previous) / 1000);
       previous = now;
+
       setActors((current) => {
         const next = Object.fromEntries(
-          Object.entries(current).map(([id, actor]) => [id, { ...actor, position: { ...actor.position }, route: actor.route.map((point) => ({ ...point })) }]),
+          Object.entries(current).map(([id, actor]) => [id, {
+            ...actor,
+            position: { ...actor.position },
+            route: actor.route.map((point) => ({ ...point })),
+          }]),
         ) as Record<string, RuntimeActor>;
         const heroes = Object.values(worldRef.current.heroes);
 
@@ -132,6 +145,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
           const actor = next[hero.id] ?? createRuntime(worldRef.current)[hero.id];
           next[hero.id] = actor;
           const action = hero.currentAction;
+
           if (!action) {
             actor.phase = 'idle';
             actor.actionId = undefined;
@@ -179,8 +193,10 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
           actor.position.x += ((waypoint.x - actor.position.x) / remaining) * step;
           actor.position.y += ((waypoint.y - actor.position.y) / remaining) * step;
         });
+
         return next;
       });
+
       frame = requestAnimationFrame(update);
     };
 
