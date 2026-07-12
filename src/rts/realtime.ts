@@ -78,8 +78,9 @@ const actionDestination = (
   actorIndex: number,
   actors: Record<string, RuntimeActor>,
 ): Point => {
+  const fallback = initialPositions[hero.id] ?? { x: 48 + actorIndex * 3, y: 39 };
   const action = hero.currentAction;
-  if (!action) return initialPositions[hero.id] ?? { x: 48 + actorIndex * 3, y: 39 };
+  if (!action) return fallback;
 
   if (socialActions.has(action.actionId) && action.targetId) {
     const target = actors[action.targetId];
@@ -90,7 +91,7 @@ const actionDestination = (
   }
 
   const destinations = fixedDestinations[action.actionId as keyof typeof fixedDestinations];
-  return destinations?.[actorIndex % destinations.length] ?? initialPositions[hero.id];
+  return destinations?.[actorIndex % destinations.length] ?? fallback;
 };
 
 const createRuntime = (world: WorldState): Record<string, RuntimeActor> =>
