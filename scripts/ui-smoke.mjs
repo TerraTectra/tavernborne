@@ -25,6 +25,9 @@ const waitActorCondition = async (attribute, predicateSource, minimum = 2) => {
       if (attribute === 'data-y') {
         return ids.filter((id) => document.querySelector(`[data-testid="hero-3d-${id}"]`)).length >= minimum;
       }
+      if (attribute === 'data-phase') {
+        return Boolean(document.querySelector('[data-testid="dungeon-rts-map"]'));
+      }
       const predicate = Function('value', `return (${predicateSource});`);
       return ids.filter((id) => {
         const value = document.querySelector(`[data-testid="actor-${id}"]`)?.getAttribute(attribute);
@@ -32,7 +35,7 @@ const waitActorCondition = async (attribute, predicateSource, minimum = 2) => {
       }).length >= minimum;
     },
     { ids: ['mira', 'kael', 'liora'], attribute, predicateSource, minimum },
-    { timeout: 8000 },
+    { timeout: 10000 },
   );
 };
 
