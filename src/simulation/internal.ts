@@ -8,6 +8,7 @@ import type {
   TraitId,
   WorldState,
 } from './model';
+import { advanceLeadership } from './leadership';
 
 export const clamp = (value: number, min = 0, max = 100): number =>
   Math.max(min, Math.min(max, value));
@@ -58,26 +59,30 @@ export const cloneHero = (hero: Hero): Hero => ({
     : undefined,
 });
 
-export const cloneWorld = (state: WorldState, tick = state.tick): WorldState => ({
-  ...state,
-  tick,
-  routine: { ...state.routine },
-  heroes: Object.fromEntries(
-    Object.entries(state.heroes).map(([id, hero]) => [id, cloneHero(hero)]),
-  ),
-  journal: state.journal.map((entry) => ({ ...entry, heroIds: [...entry.heroIds] })),
-  socialScenes: state.socialScenes.map((scene) => ({
-    ...scene,
-    planBlockIds: [...scene.planBlockIds],
-    lines: scene.lines.map((line) => ({ ...line })),
-  })),
-  expeditions: state.expeditions.map((expedition) => ({
-    ...expedition,
-    partyIds: [...expedition.partyIds],
-    loot: expedition.loot.map((item) => ({ ...item })),
-    events: expedition.events.map((event) => ({ ...event, heroIds: [...event.heroIds] })),
-  })),
-});
+export const cloneWorld = (state: WorldState, tick = state.tick): WorldState => {
+  const cloned: WorldState = {
+    ...state,
+    tick,
+    routine: { ...state.routine },
+    heroes: Object.fromEntries(
+      Object.entries(state.heroes).map(([id, hero]) => [id, cloneHero(hero)]),
+    ),
+    journal: state.journal.map((entry) => ({ ...entry, heroIds: [...entry.heroIds] })),
+    socialScenes: state.socialScenes.map((scene) => ({
+      ...scene,
+      planBlockIds: [...scene.planBlockIds],
+      lines: scene.lines.map((line) => ({ ...line })),
+    })),
+    expeditions: state.expeditions.map((expedition) => ({
+      ...expedition,
+      partyIds: [...expedition.partyIds],
+      loot: expedition.loot.map((item) => ({ ...item })),
+      events: expedition.events.map((event) => ({ ...event, heroIds: [...event.heroIds] })),
+    })),
+  };
+  advanceLeadership(cloned);
+  return cloned;
+};
 
 export const pushJournal = (
   world: WorldState,
