@@ -24,7 +24,10 @@ export function DungeonExplorationOverlay() {
   if (!world || !expedition) return null;
 
   return (
-    <div className="dungeon-overlay-frame" data-testid="dungeon-visual-overlay">
+    <div
+      className="fixed left-3 right-3 top-[92px] z-[82] h-[720px] max-h-[calc(100vh-112px)] xl:left-5 xl:right-[446px]"
+      data-testid="dungeon-visual-overlay"
+    >
       <DungeonExplorationMap world={world} expedition={expedition} />
     </div>
   );
