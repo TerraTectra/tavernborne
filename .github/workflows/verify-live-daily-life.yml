@@ -1,0 +1,50 @@
+name: Verify live visual daily life
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+
+      - name: Test public GitHub Pages with deployment retries
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: |
+          for attempt in 1 2 3; do
+            if node scripts/life-scenes-smoke.mjs; then
+              exit 0
+            fi
+            echo "Public deployment is not ready yet; retrying..."
+            sleep 30
+          done
+          exit 1
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-visual-daily-life-screenshot
+          path: life-scenes-smoke.png
+          if-no-files-found: ignore
