@@ -184,8 +184,15 @@ const startActivity = (hero: Hero, world: WorldState, plan: PlanBlock, score: Ac
 const syncDungeonActivity = (hero: Hero, world: WorldState): boolean => {
   const expedition = activeExpeditionForHero(world, hero.id);
   if (!expedition) return false;
-  const plan = hero.dailyPlan.find((block) => block.expeditionId === expedition.id);
+
+  const preparation = hero.dailyPlan.find((block) =>
+    block.expeditionId === expedition.id && block.actionId === 'work');
+  if (preparation && preparation.status !== 'done') preparation.status = 'done';
+
+  const plan = hero.dailyPlan.find((block) =>
+    block.expeditionId === expedition.id && block.actionId === 'dungeon');
   if (plan) plan.status = 'active';
+
   hero.currentActivity = {
     actionId: 'dungeon',
     label: `Поход на ${expedition.floor}-й этаж`,
