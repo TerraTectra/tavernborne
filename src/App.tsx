@@ -10,7 +10,7 @@ export default function TavernbornePreview() {
 
   return (
     <div className="relative min-h-screen bg-[#07080d]">
-      <nav className="fixed right-4 top-4 z-[100] flex rounded-xl border border-white/10 bg-slate-950/85 p-1 shadow-xl backdrop-blur">
+      <nav className="fixed bottom-4 left-1/2 z-[100] flex -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur">
         <button
           type="button"
           onClick={() => setViewMode('camp')}
