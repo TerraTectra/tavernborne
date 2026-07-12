@@ -1,0 +1,47 @@
+name: Live GitHub Pages smoke
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy Tavernborne to GitHub Pages
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+
+      - name: Test public GitHub Pages site
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: node scripts/ui-smoke.mjs
+
+      - name: Upload public-site screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-pages-smoke-screenshot
+          path: rts-smoke.png
+          if-no-files-found: ignore
