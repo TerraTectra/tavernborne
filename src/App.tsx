@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SimulationLab } from './lab/SimulationLab';
 import { RTSGame } from './rts/RTSGame';
+import './rts/rts-additions.css';
 import { VillageHub3D } from './scenes/village3d/VillageHub3D';
 
 type ViewMode = 'camp' | 'simulation' | 'village';
