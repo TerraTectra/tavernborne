@@ -1,10 +1,11 @@
 import type { ActionId, ActionScore, Hero, RelationshipId, WorldState } from './model';
 import { changeRelationship, clamp, traitLabels } from './internal';
 
-const actionLabels: Record<ActionId, string> = {
-  eat: 'Поесть', sleep: 'Отдохнуть', train: 'Тренироваться', read: 'Читать',
+export const actionLabels: Record<ActionId, string> = {
+  eat: 'Поесть', sleep: 'Спать', train: 'Тренироваться', read: 'Читать',
   talk: 'Поговорить', help: 'Помочь', apologize: 'Извиниться',
-  seekSolitude: 'Побыть одному', work: 'Поработать',
+  seekSolitude: 'Побыть одному', work: 'Поработать', dungeon: 'Исследовать подземелье',
+  recover: 'Восстанавливаться',
 };
 
 const noise = (heroId: string, tick: number, actionId: ActionId): number => {
@@ -96,6 +97,15 @@ const scoreAction = (hero: Hero, world: WorldState, actionId: ActionId): ActionS
       score += reason(reasons, traitLabels.ambition, hero.traits.ambition * 0.3);
       score -= reason(reasons, 'усталость', hero.needs.fatigue * 0.35);
       break;
+    case 'recover':
+      score += reason(reasons, 'травма', hero.condition.injury * 1.1);
+      score += reason(reasons, 'низкое здоровье', (100 - hero.condition.health) * 0.8);
+      score += reason(reasons, 'усталость', hero.needs.fatigue * 0.35);
+      break;
+    case 'dungeon':
+      score = -100;
+      reason(reasons, 'поход требует группового плана', -100);
+      break;
   }
 
   score += noise(hero.id, world.tick, actionId) * (8 + hero.traits.impulsiveness * 0.08);
@@ -110,7 +120,7 @@ const scoreAction = (hero: Hero, world: WorldState, actionId: ActionId): ActionS
 
 export const evaluateActions = (hero: Hero, world: WorldState): ActionScore[] => {
   const actions: ActionId[] = [
-    'eat', 'sleep', 'train', 'read', 'talk', 'help', 'apologize', 'seekSolitude', 'work',
+    'eat', 'sleep', 'train', 'read', 'talk', 'help', 'apologize', 'seekSolitude', 'work', 'recover',
   ];
   return actions.map((actionId) => scoreAction(hero, world, actionId))
     .sort((left, right) => right.score - left.score);
@@ -130,11 +140,15 @@ export const applyAction = (hero: Hero, action: ActionScore, world: WorldState):
       hero.needs.growth = clamp(hero.needs.growth - 25);
       hero.needs.fatigue = clamp(hero.needs.fatigue + 18);
       hero.psyche.confidence = clamp(hero.psyche.confidence + 2);
+      hero.stats.strength = clamp(hero.stats.strength + 0.8);
+      hero.stats.endurance = clamp(hero.stats.endurance + 0.5);
       break;
     case 'read':
       hero.needs.growth = clamp(hero.needs.growth - 20);
       hero.emotions.interest = clamp(hero.emotions.interest + 8);
       hero.needs.fatigue = clamp(hero.needs.fatigue + 5);
+      hero.stats.magic = clamp(hero.stats.magic + 0.6);
+      hero.stats.perception = clamp(hero.stats.perception + 0.4);
       break;
     case 'talk':
       hero.needs.social = clamp(hero.needs.social - 30);
@@ -174,6 +188,14 @@ export const applyAction = (hero: Hero, action: ActionScore, world: WorldState):
       hero.needs.recognition = clamp(hero.needs.recognition - 10);
       hero.needs.fatigue = clamp(hero.needs.fatigue + 15);
       hero.needs.growth = clamp(hero.needs.growth - 5);
+      break;
+    case 'recover':
+      hero.condition.health = clamp(hero.condition.health + 14);
+      hero.condition.injury = clamp(hero.condition.injury - 18);
+      hero.needs.fatigue = clamp(hero.needs.fatigue - 18);
+      hero.psyche.stress = clamp(hero.psyche.stress - 7);
+      break;
+    case 'dungeon':
       break;
   }
 };
