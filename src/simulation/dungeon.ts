@@ -104,12 +104,16 @@ export const advanceExpeditions = (world: WorldState): void => {
     }
 
     const result = advanceDungeonExploration(world, expedition);
-    if (result === 'complete' || result === 'retreat') {
-      completeExpedition(world, expedition, result === 'retreat');
+    const exploration = dungeonExplorationOf(expedition);
+    if (result === 'complete' || result === 'retreat' || (exploration?.step ?? 0) >= 7) {
+      completeExpedition(
+        world,
+        expedition,
+        result === 'retreat' || exploration?.threatDecision === 'retreat',
+      );
       return;
     }
 
-    const exploration = dungeonExplorationOf(expedition);
     expedition.progress = exploration
       ? clamp((exploration.step / 7) * 100, 0, 96)
       : expedition.progress;
