@@ -30,6 +30,7 @@ try {
   await page.getByTestId('dungeon-panel').waitFor();
   await page.getByTestId('save-panel').waitFor();
   await page.getByTestId('social-scenes-panel').waitFor();
+  await page.getByTestId('leadership-panel').waitFor({ timeout: 5000 });
 
   const bodyBefore = await page.textContent('body');
   for (const name of ['Астер', 'Мира', 'Каэль', 'Лиора']) {
@@ -37,8 +38,17 @@ try {
   }
   assert.ok(bodyBefore?.includes('Общий завтрак'), 'Не создан общий распорядок');
   assert.ok(bodyBefore?.includes('seed: aster-family-001'), 'Не отображается seed');
+  assert.ok(bodyBefore?.includes('лидер семьи'), 'На старте не появился лидер семьи');
   assert.ok(!bodyBefore?.includes('Черты личности'), 'Внутренняя модель видна без открытия');
   assert.equal(await page.locator('.rts-head').count(), 3, 'Не отрисованы фигуры героев');
+
+  console.log('Checking leadership model...');
+  await page.getByTestId('leadership-panel').getByRole('button').click();
+  await page.getByTestId('leadership-details').waitFor();
+  const leadershipText = await page.getByTestId('leadership-details').textContent();
+  for (const section of ['Состояние лидера', 'Ответственность', 'Давление', 'Лояльность лидеру', 'Последние события власти']) {
+    assert.ok(leadershipText?.includes(section), `Не показан раздел лидерства: ${section}`);
+  }
 
   await page.getByRole('button', { name: 'x1', exact: true }).click();
   await page.getByRole('button', { name: 'x2', exact: true }).click();
@@ -70,9 +80,12 @@ try {
   assert.ok(socialText?.includes('Разговор') || socialText?.includes('Совместная помощь') || socialText?.includes('Попытка примирения'), 'Социальная сцена не создана');
   assert.ok(socialText?.includes('согласие') || socialText?.includes('перенос') || socialText?.includes('отказ'), 'Нет ответа на предложение');
 
-  console.log('Checking save, autosave and load...');
+  console.log('Checking save, autosave, leadership persistence and load...');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  const savedTick = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
+  const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')));
+  assert.ok(saved.leadership?.familyLeaderId, 'Лидерство не попало в сохранение');
+  assert.ok(saved.leadership?.groups?.length >= 1, 'Группы лидерства не сохраняются');
+  const savedTick = saved.tick;
   await advanceHour();
   await page.waitForFunction(
     ({ key, previous }) => {
@@ -104,10 +117,11 @@ try {
   await page.getByRole('button', { name: 'Экспорт', exact: true }).click();
   const download = await downloadPromise;
   assert.ok(download.suggestedFilename().startsWith('tavernborne-'), 'Неверное имя экспорта');
-  await page.getByLabel('Seed мира').fill('social-test-777');
+  await page.getByLabel('Seed мира').fill('leadership-test-777');
   await page.getByRole('button', { name: 'Новый мир', exact: true }).click();
-  await page.waitForTimeout(250);
-  assert.ok((await page.getByTestId('world-seed').textContent())?.includes('social-test-777'), 'Seed не применился');
+  await page.waitForTimeout(900);
+  assert.ok((await page.getByTestId('world-seed').textContent())?.includes('leadership-test-777'), 'Seed не применился');
+  assert.ok((await page.getByTestId('leadership-panel').textContent())?.includes('лидер семьи'), 'В новом мире не назначен лидер');
 
   await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
   await page.getByRole('button', { name: 'Похвалить', exact: true }).click();
@@ -116,9 +130,9 @@ try {
   assert.ok((await page.getByTestId('journal-panel').textContent())?.includes('Астер похвалил'), 'Событие не попало в журнал');
   assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
 
-  console.log('Seeded saves and social scenes browser smoke test passed.');
+  console.log('Leadership, seeded saves and social scenes browser smoke test passed.');
 } catch (error) {
-  console.error('Seeded saves and social scenes browser smoke test failed:', error);
+  console.error('Leadership browser smoke test failed:', error);
   throw error;
 } finally {
   await page.screenshot({ path: 'rts-smoke.png', fullPage: true }).catch(() => undefined);

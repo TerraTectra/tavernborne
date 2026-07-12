@@ -9,6 +9,7 @@ import type {
   TraitId,
   WorldState,
 } from './model';
+import { ensureLeadership } from './leadership';
 
 const traits = (values: Partial<NumberMap<TraitId>>): NumberMap<TraitId> => ({
   kindness: 50, cruelty: 20, pride: 50, friendliness: 50, honesty: 50, patience: 50,
@@ -120,7 +121,7 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     },
   });
 
-  return {
+  const world: WorldState = {
     version: 2,
     seed: normalizedSeed,
     tick: 6,
@@ -137,4 +138,6 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     nextSocialSceneId: 1,
     nextExpeditionId: 1,
   };
+  ensureLeadership(world);
+  return world;
 };
