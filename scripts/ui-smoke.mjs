@@ -80,9 +80,12 @@ try {
     },
     { key: 'tavernborne.world.v2', previous: savedTick },
   );
+  const latestTick = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
   await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
-  await page.waitForTimeout(250);
-  assert.ok((await page.getByTestId('save-panel').textContent())?.includes('сохранение загружено'), 'Загрузка не подтверждена');
+  await page.waitForTimeout(80);
+  assert.ok((await page.getByTestId('world-seed').textContent())?.includes('aster-family-001'), 'Загружен неверный мир');
+  const tickAfterLoad = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
+  assert.equal(tickAfterLoad, latestTick, 'Загрузка повредила сохранённое состояние');
 
   console.log('Checking history and hidden diagnostics...');
   await page.getByRole('button', { name: 'Открыть историю героя', exact: true }).click();
