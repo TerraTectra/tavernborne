@@ -47,7 +47,7 @@ function usePortalTarget(selector: string) {
 }
 
 function useWorldSnapshot() {
-  const [world, setWorld] = useState<WorldState | null>(() => loadWorld());
+  const [world, setWorld] = useState<WorldState | null>(() => loadWorld() ?? null);
   const previousPayload = useRef<string | null>(null);
 
   useEffect(() => {
