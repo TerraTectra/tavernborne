@@ -31,14 +31,19 @@ jobs:
         run: |
           set -euo pipefail
           PUBLIC_URL="https://terratectra.github.io/tavernborne/"
+          html_file="$(mktemp)"
+          bundle_file="$(mktemp)"
+          trap 'rm -f "$html_file" "$bundle_file"' EXIT
           for attempt in {1..72}; do
-            html="$(curl -fsS "$PUBLIC_URL" || true)"
-            asset="$(printf '%s' "$html" | grep -oE 'assets/index-[^"[:space:]]+\.js' | head -n 1 || true)"
+            : > "$html_file"
+            : > "$bundle_file"
+            curl -fsS "$PUBLIC_URL" -o "$html_file" || true
+            asset="$(grep -oE 'assets/index-[^"[:space:]]+\.js' "$html_file" | head -n 1 || true)"
             if [ -n "$asset" ]; then
-              bundle="$(curl -fsS "${PUBLIC_URL}${asset}" || true)"
-              if printf '%s' "$bundle" | grep -q 'data-dialogue-performance' \
-                && printf '%s' "$bundle" | grep -q 'dialogueMemoryId' \
-                && printf '%s' "$bundle" | grep -q 'Скажу прямо'; then
+              curl -fsS "${PUBLIC_URL}${asset}" -o "$bundle_file" || true
+              if grep -Fq 'data-dialogue-performance' "$bundle_file" \
+                && grep -Fq 'dialogueMemoryId' "$bundle_file" \
+                && grep -Fq 'Скажу прямо' "$bundle_file"; then
                 echo "Merged Dialogue Performance v1 bundle found: $asset"
                 exit 0
               fi
