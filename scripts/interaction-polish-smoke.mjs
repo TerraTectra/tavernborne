@@ -46,7 +46,8 @@ const waitInteraction = async (id, kind) => {
 
 const heroState = async (id) => {
   const label = page.getByTestId(`hero-3d-${id}`);
-  const probe = page.getByTestId(`interaction-${id}`);
+  const probe = page.locator(`[data-testid="interaction-${id}"]`);
+  const probeExists = await probe.count() > 0;
   return {
     id,
     mode: await label.getAttribute('data-visual-mode'),
@@ -57,9 +58,9 @@ const heroState = async (id) => {
     gesture: await label.getAttribute('data-gesture'),
     sceneProp: await label.getAttribute('data-scene-prop'),
     equipment: await label.getAttribute('data-equipment-state'),
-    probeKind: await probe.getAttribute('data-interaction-kind'),
-    probeContact: await probe.getAttribute('data-interaction-contact'),
-    probeProp: await probe.getAttribute('data-interaction-prop'),
+    probeKind: probeExists ? await probe.getAttribute('data-interaction-kind') : 'none',
+    probeContact: probeExists ? await probe.getAttribute('data-interaction-contact') : 'none',
+    probeProp: probeExists ? await probe.getAttribute('data-interaction-prop') : 'none',
   };
 };
 
@@ -209,6 +210,8 @@ try {
   diagnostics.social = social;
   assert.equal(social[0].intent, 'help');
   assert.equal(social[0].animation, 'Fixing_Kneeling');
+  assert.equal(social[1].interaction, 'none');
+  assert.equal(social[1].probeContact, 'none');
   assert.equal(social[2].intent, 'solitude');
   assert.equal(social[2].animation, 'Idle_Torch_Loop');
 
