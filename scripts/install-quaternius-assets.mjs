@@ -8,6 +8,8 @@ const cacheRoot = path.join(projectRoot, '.asset-cache', 'quaternius');
 const outputRoot = path.join(projectRoot, 'public', 'assets', 'quaternius');
 const modelsRoot = path.join(outputRoot, 'models');
 const charactersRoot = path.join(outputRoot, 'characters');
+const glbMagic = 0x46546c67;
+const glbJsonChunk = 0x4e4f534a;
 
 const packs = [
   {
@@ -107,7 +109,7 @@ async function downloadPack(pack) {
     const response = await fetch(pack.downloadUrl, {
       redirect: 'follow',
       headers: {
-        'User-Agent': 'TavernborneAssetInstaller/1.1 (+https://github.com/TerraTectra/tavernborne)',
+        'User-Agent': 'TavernborneAssetInstaller/1.2 (+https://github.com/TerraTectra/tavernborne)',
       },
     });
 
@@ -165,32 +167,92 @@ function selectCandidate(files, target, options = {}) {
   return ranked[0]?.score > 0 ? ranked[0] : null;
 }
 
+function externalUri(uri) {
+  return Boolean(uri)
+    && !uri.startsWith('data:')
+    && !uri.startsWith('http://')
+    && !uri.startsWith('https://');
+}
+
+function cleanDependencyUri(uri) {
+  const withoutQuery = uri.split(/[?#]/u, 1)[0];
+  try {
+    return decodeURIComponent(withoutQuery).replaceAll('\\', '/');
+  } catch {
+    return withoutQuery.replaceAll('\\', '/');
+  }
+}
+
+function ensureInsideOutput(targetPath, uri) {
+  const relative = path.relative(outputRoot, targetPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`[quaternius] Dependency escapes output directory: ${uri}`);
+  }
+}
+
 async function copyDependency(fromDir, toDir, uri) {
-  if (!uri || uri.startsWith('data:') || uri.startsWith('http://') || uri.startsWith('https://')) return;
-  const source = path.resolve(fromDir, uri);
-  const target = path.resolve(toDir, uri);
+  if (!externalUri(uri)) return false;
+  const cleanUri = cleanDependencyUri(uri);
+  const source = path.resolve(fromDir, cleanUri);
+  const target = path.resolve(toDir, cleanUri);
+  ensureInsideOutput(target, uri);
+  if (!(await exists(source))) throw new Error(`[quaternius] Missing external dependency ${uri} next to ${fromDir}`);
   await mkdir(path.dirname(target), { recursive: true });
   await copyFile(source, target);
+  return true;
+}
+
+function readGlbJson(buffer, sourceFile) {
+  if (buffer.length < 20 || buffer.readUInt32LE(0) !== glbMagic) {
+    throw new Error(`[quaternius] Invalid GLB header: ${sourceFile}`);
+  }
+  let offset = 12;
+  while (offset + 8 <= buffer.length) {
+    const chunkLength = buffer.readUInt32LE(offset);
+    const chunkType = buffer.readUInt32LE(offset + 4);
+    const chunkStart = offset + 8;
+    const chunkEnd = chunkStart + chunkLength;
+    if (chunkEnd > buffer.length) throw new Error(`[quaternius] Invalid GLB chunk length: ${sourceFile}`);
+    if (chunkType === glbJsonChunk) {
+      const text = buffer.subarray(chunkStart, chunkEnd).toString('utf-8').replace(/\u0000+$/u, '').trim();
+      return JSON.parse(text);
+    }
+    offset = chunkEnd;
+  }
+  throw new Error(`[quaternius] GLB JSON chunk not found: ${sourceFile}`);
+}
+
+async function copyReferencedDependencies(json, sourceDir, targetDir) {
+  const uris = new Set([
+    ...(json.buffers ?? []).map((buffer) => buffer.uri),
+    ...(json.images ?? []).map((image) => image.uri),
+  ].filter(externalUri));
+  let copied = 0;
+  for (const uri of uris) {
+    if (await copyDependency(sourceDir, targetDir, uri)) copied += 1;
+  }
+  return copied;
 }
 
 async function copyModel(sourceFile, targetDir) {
   await rm(targetDir, { recursive: true, force: true });
   await mkdir(targetDir, { recursive: true });
 
+  const sourceDir = path.dirname(sourceFile);
   const ext = path.extname(sourceFile).toLowerCase();
   if (ext === '.glb') {
-    await copyFile(sourceFile, path.join(targetDir, 'model.glb'));
-    return 'model.glb';
+    const bytes = await readFile(sourceFile);
+    await writeFile(path.join(targetDir, 'model.glb'), bytes);
+    const json = readGlbJson(bytes, sourceFile);
+    const externalDependencies = await copyReferencedDependencies(json, sourceDir, targetDir);
+    return { file: 'model.glb', externalDependencies };
   }
 
-  const sourceDir = path.dirname(sourceFile);
   const targetModel = path.join(targetDir, 'model.gltf');
   const json = JSON.parse(await readFile(sourceFile, 'utf-8'));
   await writeFile(targetModel, JSON.stringify(json, null, 2), 'utf-8');
-
-  for (const buffer of json.buffers ?? []) await copyDependency(sourceDir, targetDir, buffer.uri);
-  for (const image of json.images ?? []) await copyDependency(sourceDir, targetDir, image.uri);
-  return 'model.gltf';
+  const externalDependencies = await copyReferencedDependencies(json, sourceDir, targetDir);
+  return { file: 'model.gltf', externalDependencies };
 }
 
 async function main() {
@@ -231,13 +293,14 @@ async function main() {
     }
 
     const targetDir = path.join(modelsRoot, target.id);
-    const modelFile = await copyModel(candidate.file, targetDir);
+    const copied = await copyModel(candidate.file, targetDir);
     models[target.id] = {
-      file: `assets/quaternius/models/${target.id}/${modelFile}`,
+      file: `assets/quaternius/models/${target.id}/${copied.file}`,
       targetSize: target.size,
       sourcePack: packData.pack.name,
       sourceFile: path.relative(packData.extractedDir, candidate.file).replaceAll('\\', '/'),
       score: candidate.score,
+      externalDependencies: copied.externalDependencies,
     };
   }
 
@@ -255,15 +318,16 @@ async function main() {
     }
 
     const targetDir = path.join(charactersRoot, target.id);
-    const modelFile = await copyModel(candidate.file, targetDir);
+    const copied = await copyModel(candidate.file, targetDir);
     characters[target.id] = {
-      file: `assets/quaternius/characters/${target.id}/${modelFile}`,
+      file: `assets/quaternius/characters/${target.id}/${copied.file}`,
       targetHeight: target.targetHeight,
       compatibleRig: target.compatibleRig,
       sourcePack: packData.pack.name,
       sourceFile: path.relative(packData.extractedDir, candidate.file).replaceAll('\\', '/'),
       score: candidate.score,
       animationPolicy: 'runtime-discovery',
+      externalDependencies: copied.externalDependencies,
     };
   }
 
