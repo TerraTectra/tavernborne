@@ -13,6 +13,13 @@ const packIdByName = new Map([
   ['Universal Animation Library', 'universal-animation-library'],
 ]);
 
+const pbrFallbacks = new Map([
+  ['t_trim_props_basecolor.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPYsqDpPwAGuALWUk6tNgAAAABJRU5ErkJggg=='],
+  ['t_trim_props_normal.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNoaPj/HwAGggL/s75RMwAAAABJRU5ErkJggg=='],
+  ['t_trim_metal_normal.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNoaPj/HwAGggL/s75RMwAAAABJRU5ErkJggg=='],
+  ['t_trim_props_orm.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4f4fhPwAHlALbY53LjQAAAABJRU5ErkJggg=='],
+]);
+
 async function exists(filePath) {
   try {
     await stat(filePath);
@@ -75,6 +82,7 @@ async function main() {
   let repaired = 0;
   let exactMatches = 0;
   let fallbackMatches = 0;
+  let synthesized = 0;
 
   for (const gltfFile of gltfFiles) {
     const json = JSON.parse(await readFile(gltfFile, 'utf-8'));
@@ -91,36 +99,45 @@ async function main() {
       const originalUri = sourceImage?.uri ?? image.uri;
       const uri = normalizedUri(originalUri);
       const basename = path.basename(uri);
+      const lowercaseBasename = basename.toLowerCase();
       const aliasPath = path.join(modelDir, basename);
-      const exactPath = exactModel ? path.resolve(path.dirname(exactModel.sourceModel), uri) : undefined;
-      const generatedPath = path.resolve(modelDir, normalizedUri(image.uri));
-      const fallbackCandidates = textureByBasename.get(basename.toLowerCase()) ?? [];
-
-      let source;
-      if (exactPath && await exists(exactPath)) {
-        source = exactPath;
-        exactMatches += 1;
-      } else if (generatedPath.startsWith(outputRoot) && await exists(generatedPath)) {
-        source = generatedPath;
-        exactMatches += 1;
-      } else if (fallbackCandidates.length === 1) {
-        source = fallbackCandidates[0];
-        fallbackMatches += 1;
-      } else if (fallbackCandidates.length > 1) {
-        const packId = exactModel ? path.relative(cacheRoot, exactModel.sourceModel).split(path.sep)[0] : undefined;
-        source = fallbackCandidates.find((candidate) => path.relative(cacheRoot, candidate).split(path.sep)[0] === packId)
-          ?? fallbackCandidates[0];
-        fallbackMatches += 1;
-      }
-
-      if (!source) {
-        console.warn(`[quaternius] Texture source not found for ${originalUri} in ${path.relative(projectRoot, gltfFile)}`);
-        continue;
-      }
+      const synthesizedPng = pbrFallbacks.get(lowercaseBasename);
 
       await mkdir(path.dirname(aliasPath), { recursive: true });
-      if (path.resolve(source) !== path.resolve(aliasPath)) await copyFile(source, aliasPath);
-      repaired += 1;
+      if (synthesizedPng) {
+        await writeFile(aliasPath, Buffer.from(synthesizedPng, 'base64'));
+        synthesized += 1;
+        repaired += 1;
+      } else {
+        const exactPath = exactModel ? path.resolve(path.dirname(exactModel.sourceModel), uri) : undefined;
+        const generatedPath = path.resolve(modelDir, normalizedUri(image.uri));
+        const fallbackCandidates = textureByBasename.get(lowercaseBasename) ?? [];
+
+        let source;
+        if (exactPath && await exists(exactPath)) {
+          source = exactPath;
+          exactMatches += 1;
+        } else if (generatedPath.startsWith(outputRoot) && await exists(generatedPath)) {
+          source = generatedPath;
+          exactMatches += 1;
+        } else if (fallbackCandidates.length === 1) {
+          source = fallbackCandidates[0];
+          fallbackMatches += 1;
+        } else if (fallbackCandidates.length > 1) {
+          const packId = exactModel ? path.relative(cacheRoot, exactModel.sourceModel).split(path.sep)[0] : undefined;
+          source = fallbackCandidates.find((candidate) => path.relative(cacheRoot, candidate).split(path.sep)[0] === packId)
+            ?? fallbackCandidates[0];
+          fallbackMatches += 1;
+        }
+
+        if (!source) {
+          console.warn(`[quaternius] Texture source not found for ${originalUri} in ${path.relative(projectRoot, gltfFile)}`);
+          continue;
+        }
+
+        if (path.resolve(source) !== path.resolve(aliasPath)) await copyFile(source, aliasPath);
+        repaired += 1;
+      }
 
       if (image.uri !== basename) {
         image.uri = basename;
@@ -131,7 +148,7 @@ async function main() {
     if (changed) await writeFile(gltfFile, `${JSON.stringify(json, null, 2)}\n`, 'utf-8');
   }
 
-  console.log(`[quaternius] Repaired ${repaired} external texture alias(es) across ${gltfFiles.length} generated glTF model(s): ${exactMatches} exact, ${fallbackMatches} fallback.`);
+  console.log(`[quaternius] Repaired ${repaired} external texture alias(es) across ${gltfFiles.length} generated glTF model(s): ${exactMatches} exact, ${fallbackMatches} fallback, ${synthesized} synthesized PBR maps.`);
 }
 
 main().catch((error) => {
