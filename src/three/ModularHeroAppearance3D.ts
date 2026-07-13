@@ -96,7 +96,7 @@ const fallbackProfile: HeroAppearanceProfile = {
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-function material(color: string, options: { metalness?: number; roughness?: number; emissive?: string; emissiveIntensity?: number; side?: number } = {}) {
+function material(color: string, options: { metalness?: number; roughness?: number; emissive?: string; emissiveIntensity?: number; side?: 0 | 1 | 2 } = {}) {
   return new MeshStandardMaterial({
     color: new Color(color),
     metalness: options.metalness ?? 0.04,
@@ -319,7 +319,7 @@ export function applyModularHeroAppearance(root: Object3D, heroId: string): Modu
   let moduleCount = 0;
 
   const hair = attach(root, ['head', 'mixamorighead', 'defhead'], createHair(profile), [0, 1.72, 0]);
-  hair.position.add({ x: 0, y: 0.08, z: 0 } as never);
+  hair.position.y += 0.08;
   moduleCount += 1;
 
   attach(root, ['head', 'mixamorighead', 'defhead'], createFaceDetails(profile), [0, 1.72, 0]);
@@ -336,7 +336,7 @@ export function applyModularHeroAppearance(root: Object3D, heroId: string): Modu
   if (profile.equipment !== 'none') {
     heldEquipment = attach(root, ['righthand', 'handr', 'rhand', 'rightwrist'], createEquipment(profile), [0.36, 1.05, 0]);
     heldEquipment.rotation.set(0, 0, profile.equipment === 'staff' ? 0 : Math.PI);
-    heldEquipment.position.add({ x: 0, y: profile.equipment === 'staff' ? 0.15 : -0.05, z: 0 } as never);
+    heldEquipment.position.y += profile.equipment === 'staff' ? 0.15 : -0.05;
     heldEquipment.visible = false;
     moduleCount += 1;
 
