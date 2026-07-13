@@ -62,14 +62,14 @@ const facingAngle: Record<NonNullable<RuntimeActor['facing']>, number> = {
 };
 
 const clipHints: Record<AnimationIntent, string[]> = {
-  idle: ['idle', 'breath', 'stand', 'neutral'],
-  walk: ['walk forward', 'walking', 'walk', 'jog forward', 'jog'],
-  sleep: ['sleep', 'lay', 'lying', 'sit idle', 'sitting'],
-  train: ['punch', 'melee', 'attack', 'kick', 'combat', 'sword'],
-  work: ['push', 'pull', 'pick up', 'carry', 'hammer', 'interact', 'work'],
-  eat: ['eat', 'drink', 'sitting', 'sit'],
-  talk: ['talk', 'explain', 'gesture', 'wave', 'greet', 'agree'],
-  dungeon: ['combat idle', 'battle idle', 'idle', 'guard'],
+  idle: ['idle loop', 'idle torch loop', 'sword idle', 'pistol idle loop'],
+  walk: ['walk loop', 'walk formal loop', 'jog fwd loop', 'sprint loop', 'crouch fwd loop'],
+  sleep: ['sitting idle loop', 'driving loop', 'idle loop'],
+  train: ['punch jab', 'punch cross', 'sword attack', 'sword attack rm', 'spell simple shoot', 'push loop'],
+  work: ['fixing kneeling', 'pickup table', 'interact', 'push loop'],
+  eat: ['sitting idle loop', 'sitting talking loop', 'interact'],
+  talk: ['idle talking loop', 'sitting talking loop', 'interact'],
+  dungeon: ['sword idle', 'idle torch loop', 'pistol idle loop', 'idle loop'],
 };
 
 const normalize = (value: string) => value.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -91,10 +91,11 @@ function chooseClip(names: string[], intent: AnimationIntent): string | undefine
   for (const hint of clipHints[intent]) {
     const exact = normalized.find((candidate) => candidate.normalized === hint);
     if (exact) return exact.name;
+  }
+  for (const hint of clipHints[intent]) {
     const partial = normalized.find((candidate) => candidate.normalized.includes(hint));
     if (partial) return partial.name;
   }
-
   if (intent !== 'idle') return chooseClip(names, 'idle');
   return names[0];
 }
@@ -226,6 +227,7 @@ function RiggedHeroBody3D({
           className={`world3d-hero-label ${selected ? 'world3d-hero-label-selected' : ''}`}
           data-testid={`${testIdPrefix}-${hero.id}`}
           data-visual-mode="rigged-asset"
+          data-animation-intent={intent}
           data-animation={clipName ?? 'none'}
           data-animation-count={names.length}
           data-asset-source="quaternius-universal-animation-library"
