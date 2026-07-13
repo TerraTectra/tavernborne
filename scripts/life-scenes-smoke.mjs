@@ -16,8 +16,7 @@ const advanceHour = async (wait = 180) => {
   await page.waitForTimeout(wait);
 };
 
-const actorNumber = async (id, attribute) =>
-  Number(await page.getByTestId(`actor-${id}`).getAttribute(attribute));
+const actorNumber = async (id, attribute) => Number(await page.getByTestId(`actor-${id}`).getAttribute(attribute));
 
 try {
   console.log(`Opening visual daily life simulation at ${testUrl}...`);
@@ -49,27 +48,25 @@ try {
   await page.getByTestId('visual-scene-panel').waitFor();
   assert.equal(await mealPanel.count(), 0, 'Завтрак не уступил место более важному совету');
 
-  console.log('Completing council and expedition...');
+  console.log('Completing council and entering the 3D expedition...');
   for (let hour = 0; hour < 5; hour += 1) await advanceHour(hour === 4 ? 2800 : 650);
-  const awayAtDeparture = await Promise.all(['mira', 'kael', 'liora'].map((id) =>
-    page.getByTestId(`actor-${id}`).getAttribute('data-phase')));
-  assert.ok(awayAtDeparture.filter((phase) => phase === 'away').length >= 2, 'Группа не вышла после визуального совета');
-  for (let hour = 0; hour < 7; hour += 1) await advanceHour(120);
+  await page.getByTestId('dungeon-rts-map').waitFor({ timeout: 9000 });
+  assert.ok((await page.getByTestId('dungeon-panel').textContent())?.includes('В подземелье'), 'Группа не вышла после визуального совета');
+  for (let hour = 0; hour < 7; hour += 1) await advanceHour(300);
 
   console.log('Checking visual expedition debrief...');
   await advanceHour(1700);
-  await mealPanel.waitFor();
+  await mealPanel.waitFor({ timeout: 8000 });
   assert.equal(await mealPanel.getAttribute('data-scene-type'), 'debrief', 'Возвращение не привело к визуальному разбору похода');
   assert.ok((await mealPanel.textContent())?.includes('Разбор похода'), 'Нет реплик разбора похода');
   assert.ok((await page.getByTestId('life-scene-participants').textContent())?.includes('ведёт обсуждение'), 'Лидер не ведёт разбор');
-  assert.ok(await page.locator('.rts-map-scroll').count() >= 0, 'Ошибка визуального реквизита разбора');
 
   console.log('Resolving debrief, then checking visible conflict and mediation...');
-  for (let hour = 0; hour < 5; hour += 1) await advanceHour(90);
+  for (let hour = 0; hour < 5; hour += 1) await advanceHour(150);
   await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
   await page.getByRole('button', { name: 'Спровоцировать ссору', exact: true }).click();
   await advanceHour(1700);
-  await mealPanel.waitFor();
+  await mealPanel.waitFor({ timeout: 8000 });
   assert.equal(await mealPanel.getAttribute('data-scene-type'), 'conflict', 'Ссора осталась только записью в журнале');
   const conflictText = await mealPanel.textContent();
   assert.ok(conflictText?.includes('Открытый конфликт'), 'Не показан тип конфликтной сцены');
@@ -81,16 +78,13 @@ try {
   const conflictXs = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorNumber(id, 'data-x')));
   assert.ok(Math.max(...conflictXs) - Math.min(...conflictXs) >= 12, 'Участники конфликта не разошлись визуально');
 
-  for (let hour = 0; hour < 5; hour += 1) await advanceHour(90);
+  for (let hour = 0; hour < 5; hour += 1) await advanceHour(150);
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await page.waitForTimeout(250);
   const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')));
   const sceneTypes = saved.lifeScenes?.scenes?.map((scene) => scene.type) ?? [];
-  for (const type of ['meal', 'debrief', 'conflict']) {
-    assert.ok(sceneTypes.includes(type), `В сохранении отсутствует визуальная сцена: ${type}`);
-  }
-  assert.ok(Object.values(saved.heroes).some((hero) =>
-    hero.memories.some((memory) => memory.tags?.includes('visual-scene'))), 'Сцены не создали воспоминаний');
+  for (const type of ['meal', 'debrief', 'conflict']) assert.ok(sceneTypes.includes(type), `В сохранении отсутствует визуальная сцена: ${type}`);
+  assert.ok(Object.values(saved.heroes).some((hero) => hero.memories.some((memory) => memory.tags?.includes('visual-scene'))), 'Сцены не создали воспоминаний');
   assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
 
   console.log('Visual daily life browser smoke test passed.');
