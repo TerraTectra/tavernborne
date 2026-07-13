@@ -25,6 +25,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
       ]),
     );
     prepareLifeScenes(prepared, prepared.tick + 1);
+    advanceConversationConsequences(prepared);
     world = advanceExpeditionVisualSimulation(prepared, 1);
     advancePhysicalBodies(world, 1, previousActions);
     advanceLifeScenes(world);
