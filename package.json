@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "assets:install:legacy": "node scripts/install-kenney-assets.mjs",
-    "assets:install:quaternius": "node scripts/install-quaternius-assets.mjs",
+    "assets:install:quaternius": "node scripts/install-quaternius-assets.mjs && node scripts/repair-quaternius-textures.mjs",
     "assets:install": "npm run assets:install:legacy && npm run assets:install:quaternius",
     "deploy:github-pages": "npm run build",
     "postinstall": "node scripts/install-kenney-assets.mjs"
