@@ -53,10 +53,10 @@ jobs:
           path: topdown-3d-diagnostics.txt
           if-no-files-found: ignore
 
-      - name: Upload 3D screenshot
+      - name: Upload 3D screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: topdown-3d-screenshot
-          path: topdown-3d-smoke.png
+          name: topdown-3d-screenshots
+          path: topdown-3d-*.png
           if-no-files-found: ignore
