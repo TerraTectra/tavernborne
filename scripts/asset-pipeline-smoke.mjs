@@ -39,7 +39,7 @@ try {
   await page.getByRole('heading', { name: 'Живая кибитка' }).waitFor();
 
   const assetInfo = await page.evaluate(async () => {
-    const manifestUrl = `${import.meta.url ? '' : ''}${new URL('assets/quaternius/manifest.json', document.baseURI)}`;
+    const manifestUrl = new URL('assets/quaternius/manifest.json', document.baseURI);
     const response = await fetch(manifestUrl, { cache: 'no-cache' });
     const manifest = await response.json();
     const character = manifest.characters?.universalHumanoid;
