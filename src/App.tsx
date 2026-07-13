@@ -8,6 +8,7 @@ import { RTSGameV2 } from './rts/RTSGameV2';
 import { VisualSceneOverlay } from './rts/VisualSceneOverlay';
 import './rts/rts-additions.css';
 import { VillageHub3D } from './scenes/village3d/VillageHub3D';
+import { CampWorld3DOverlay } from './three/CampWorld3DOverlay';
 
 type ViewMode = 'camp' | 'simulation' | 'village';
 
@@ -24,7 +25,7 @@ export default function TavernbornePreview() {
             viewMode === 'camp' ? 'bg-amber-300/15 text-amber-100' : 'text-slate-400 hover:text-white'
           }`}
         >
-          Кибитка RTS
+          Живой 3D-мир
         </button>
         <button
           type="button"
@@ -42,13 +43,14 @@ export default function TavernbornePreview() {
             viewMode === 'village' ? 'bg-amber-300/15 text-amber-100' : 'text-slate-400 hover:text-white'
           }`}
         >
-          Старый 3D-мир
+          Архивный 3D-прототип
         </button>
       </nav>
 
       {viewMode === 'camp' && (
         <>
           <RTSGameV2 />
+          <CampWorld3DOverlay />
           <DungeonExplorationOverlay />
           <LifeSceneOverlay />
           <VisualSceneOverlay />

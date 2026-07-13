@@ -1,17 +1,14 @@
-name: Visual daily life smoke
+name: Top-down 3D smoke
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 24
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,37 +26,37 @@ jobs:
 
       - name: Install Playwright Chromium
         run: |
-          npm install --no-save playwright@1.49.1
+          npm install --no-save playwright
           npx playwright install --with-deps chromium
 
       - name: Start preview server
         run: |
-          npm run preview -- --host 127.0.0.1 > /tmp/tavernborne-life-preview.log 2>&1 &
-          echo $! > /tmp/tavernborne-life-preview.pid
-          for attempt in {1..40}; do
-            if curl -fsS http://127.0.0.1:4173/tavernborne/ >/dev/null; then
+          npm run preview -- --host 127.0.0.1 > /tmp/tavernborne-preview.log 2>&1 &
+          echo $! > /tmp/tavernborne-preview.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
               exit 0
             fi
             sleep 1
           done
-          cat /tmp/tavernborne-life-preview.log
+          cat /tmp/tavernborne-preview.log
           exit 1
 
-      - name: Test visual daily life in Chromium
-        run: node scripts/life-scenes-smoke.mjs
+      - name: Test top-down 3D world in Chromium
+        run: node scripts/topdown-3d-smoke.mjs
 
-      - name: Upload diagnostics
+      - name: Upload 3D diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: visual-daily-life-diagnostics
-          path: life-scenes-diagnostics.json
+          name: topdown-3d-diagnostics
+          path: topdown-3d-diagnostics.txt
           if-no-files-found: ignore
 
-      - name: Upload screenshot
+      - name: Upload 3D screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: visual-daily-life-screenshot
-          path: life-scenes-smoke.png
+          name: topdown-3d-screenshots
+          path: topdown-3d-*.png
           if-no-files-found: ignore

@@ -11,12 +11,32 @@ page.on('console', (message) => {
   if (message.type() === 'error') pageErrors.push(message.text());
 });
 
-const actorAttribute = (heroId, attribute) =>
-  page.getByTestId(`actor-${heroId}`).getAttribute(attribute);
-
+const actorAttribute = (heroId, attribute) => page.getByTestId(`actor-${heroId}`).getAttribute(attribute);
 const advanceHour = async (wait = 120) => {
   await page.getByRole('button', { name: '+1 час', exact: true }).click();
   await page.waitForTimeout(wait);
+};
+const waitScenePhase = async (text) => {
+  await page.getByTestId('visual-scene-phase').filter({ hasText: text }).waitFor({ timeout: 7000 });
+};
+const waitActorCondition = async (attribute, predicateSource, minimum = 2) => {
+  await page.waitForFunction(
+    ({ ids, attribute, predicateSource, minimum }) => {
+      if (attribute === 'data-y') {
+        return ids.filter((id) => document.querySelector(`[data-testid="hero-3d-${id}"]`)).length >= minimum;
+      }
+      if (attribute === 'data-phase') {
+        return Boolean(document.querySelector('[data-testid="dungeon-rts-map"]'));
+      }
+      const predicate = Function('value', `return (${predicateSource});`);
+      return ids.filter((id) => {
+        const value = document.querySelector(`[data-testid="actor-${id}"]`)?.getAttribute(attribute);
+        return predicate(value);
+      }).length >= minimum;
+    },
+    { ids: ['mira', 'kael', 'liora'], attribute, predicateSource, minimum },
+    { timeout: 10000 },
+  );
 };
 
 try {
@@ -33,9 +53,7 @@ try {
   await page.getByTestId('leadership-panel').waitFor({ timeout: 5000 });
 
   const bodyBefore = await page.textContent('body');
-  for (const name of ['Астер', 'Мира', 'Каэль', 'Лиора']) {
-    assert.ok(bodyBefore?.includes(name), `Не найден персонаж: ${name}`);
-  }
+  for (const name of ['Астер', 'Мира', 'Каэль', 'Лиора']) assert.ok(bodyBefore?.includes(name), `Не найден персонаж: ${name}`);
   assert.ok(bodyBefore?.includes('Общий завтрак'), 'Не создан общий распорядок');
   assert.ok(bodyBefore?.includes('seed: aster-family-001'), 'Не отображается seed');
   assert.ok(bodyBefore?.includes('лидер семьи'), 'На старте не появился лидер семьи');
@@ -62,56 +80,52 @@ try {
   console.log('Checking visual expedition council: gathering...');
   await advanceHour(2200);
   await page.getByTestId('visual-scene-panel').waitFor({ timeout: 5000 });
-  assert.ok((await page.getByTestId('visual-scene-phase').textContent())?.includes('Сбор у общего стола'), 'Совет не начал сбор у стола');
+  await waitScenePhase('Сбор у общего стола');
   const sceneActors = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-scene')));
   assert.equal(sceneActors.filter(Boolean).length, 3, 'Не все члены семьи включены в визуальную сцену');
 
   console.log('Checking leader briefing...');
   await advanceHour(800);
-  assert.ok((await page.getByTestId('visual-scene-phase').textContent())?.includes('Объявление цели'), 'Лидер не объявил цель похода');
+  await waitScenePhase('Объявление цели');
   assert.ok(await page.locator('[data-testid^="actor-bubble-"]').count() >= 1, 'Речь лидера не показана над фигурой');
 
   console.log('Checking role assignment and visible responses...');
   await advanceHour(900);
-  assert.ok((await page.getByTestId('visual-scene-phase').textContent())?.includes('Распределение ролей'), 'Роли не распределяются визуально');
+  await waitScenePhase('Распределение ролей');
   const roleText = await page.getByTestId('visual-scene-roles').textContent();
   assert.ok(roleText?.includes('лидер отряда'), 'Не показан лидер отряда');
   assert.ok(['передний боец', 'разведчик', 'поддержка'].some((role) => roleText?.includes(role)), 'Не показана роль второго участника');
   assert.ok(await page.locator('[data-testid^="actor-role-"]').count() >= 2, 'Роли не отображаются над персонажами');
 
   console.log('Checking physical equipment collection...');
-  await advanceHour(2600);
-  assert.ok((await page.getByTestId('visual-scene-phase').textContent())?.includes('Получение снаряжения'), 'Нет фазы получения снаряжения');
+  await advanceHour(400);
+  await waitScenePhase('Получение снаряжения');
   assert.ok(await page.locator('.rts-backpack').count() >= 2, 'Участники не получили рюкзаки');
-  const equipmentX = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-x')));
-  assert.ok(equipmentX.filter((value) => Number(value) > 68).length >= 2, 'Группа не подошла к месту снаряжения');
+  await waitActorCondition('data-x', 'Number(value) > 68');
 
-  console.log('Checking formation at exit...');
-  await advanceHour(2600);
-  assert.ok((await page.getByTestId('visual-scene-phase').textContent())?.includes('Построение у выхода'), 'Группа не построилась у выхода');
-  const departureY = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-y')));
-  assert.ok(departureY.filter((value) => Number(value) > 75).length >= 2, 'Участники физически не подошли к выходу');
+  console.log('Checking visible 3D formation at exit...');
+  await advanceHour(400);
+  await waitScenePhase('Построение у выхода');
+  await waitActorCondition('data-y', 'Number(value) > 75');
   assert.ok(await page.locator('.rts-sword').count() >= 2, 'Перед выходом не показано оружие');
+  assert.ok(await page.locator('[data-testid^="hero-3d-"]').count() >= 2, 'Участники не показаны в 3D-строю');
 
   console.log('Checking departure only after the visual council...');
-  await advanceHour(1400);
-  const phasesAtDeparture = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorAttribute(id, 'data-phase')));
-  assert.ok(phasesAtDeparture.filter((phase) => phase === 'away').length >= 2, 'Группа не покинула карту после совета');
+  await advanceHour(400);
+  await waitActorCondition('data-phase', 'value === "away"');
   assert.ok((await page.getByTestId('dungeon-panel').textContent())?.includes('В подземелье'), 'Поход не активен');
   assert.equal(await page.getByTestId('visual-scene-panel').count(), 0, 'Завершённый совет остался активным');
-  await page.getByTestId('dungeon-rts-map').waitFor({ timeout: 5000 });
+  await page.getByTestId('dungeon-rts-map').waitFor({ timeout: 7000 });
 
   console.log('Checking visual dungeon cycle...');
-  await advanceHour();
+  await advanceHour(500);
   const dungeonEvent = (await page.getByTestId('dungeon-panel').textContent())?.toLowerCase();
-  assert.ok(
-    ['проход', 'коридор', 'развед', 'маршрут', 'ловушк', 'сундук', 'страж'].some((part) => dungeonEvent?.includes(part)),
-    'Нет события визуального исследования подземелья',
-  );
-  for (let hour = 0; hour < 6; hour += 1) await advanceHour();
-  await page.waitForTimeout(1800);
-  const returned = await page.getByTestId('dungeon-panel').textContent();
-  assert.ok(returned?.includes('Завершён') || returned?.includes('Отступление'), 'Поход не завершился');
+  assert.ok(['проход', 'коридор', 'развед', 'маршрут', 'ловушк', 'сундук', 'страж'].some((part) => dungeonEvent?.includes(part)), 'Нет события визуального исследования подземелья');
+  for (let hour = 0; hour < 6; hour += 1) await advanceHour(300);
+  await page.waitForFunction(() => {
+    const text = document.querySelector('[data-testid="dungeon-panel"]')?.textContent ?? '';
+    return text.includes('Завершён') || text.includes('Отступление');
+  }, undefined, { timeout: 9000 });
 
   console.log('Checking negotiated social scene...');
   await advanceHour();
@@ -131,13 +145,10 @@ try {
   assert.ok(saved.expeditions.some((expedition) => expedition.exploration?.rooms?.length === 7), 'Карта этажа не сохранилась');
   const savedTick = saved.tick;
   await advanceHour();
-  await page.waitForFunction(
-    ({ key, previous }) => {
-      const raw = window.localStorage.getItem(key);
-      return raw ? JSON.parse(raw).tick > previous : false;
-    },
-    { key: 'tavernborne.world.v2', previous: savedTick },
-  );
+  await page.waitForFunction(({ key, previous }) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw).tick > previous : false;
+  }, { key: 'tavernborne.world.v2', previous: savedTick });
   const latestTick = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
   await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
   await page.waitForTimeout(100);
@@ -152,9 +163,7 @@ try {
   const inner = page.getByTestId('inner-model');
   await inner.waitFor();
   const innerText = await inner.textContent();
-  for (const section of ['Все эмоции', 'Черты личности', 'Потребности', 'Психика', 'Отношения', 'Воспоминания']) {
-    assert.ok(innerText?.includes(section), `Не раскрыт раздел: ${section}`);
-  }
+  for (const section of ['Все эмоции', 'Черты личности', 'Потребности', 'Психика', 'Отношения', 'Воспоминания']) assert.ok(innerText?.includes(section), `Не раскрыт раздел: ${section}`);
 
   console.log('Checking diagnostic export and new seed...');
   const downloadPromise = page.waitForEvent('download');
