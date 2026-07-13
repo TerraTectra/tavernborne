@@ -1,0 +1,49 @@
+name: Public modular appearance verify
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Verify public GitHub Pages build
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: |
+          for attempt in {1..5}; do
+            if node scripts/public-modular-verify.mjs; then
+              exit 0
+            fi
+            echo "Public build not ready yet; retry $attempt/5"
+            sleep 30
+          done
+          exit 1
+
+      - name: Upload public verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-modular-verification
+          path: |
+            public-modular-diagnostics.json
+            public-modular-appearance.png
+          if-no-files-found: ignore
