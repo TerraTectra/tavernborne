@@ -179,10 +179,10 @@ const renderText = (
     ? `Я помню: ${memory}. Поэтому ${lowerFirst(base)}`
     : `Я обдумал это. ${base}`;
   else if (id === 'wounded') rendered = memory
-    ? `После того, как ${lowerFirst(memory)}, я не могу говорить как раньше. ${base}`
+    ? `После того, как ${memory}, я не могу говорить как раньше. ${base}`
     : `Мне до сих пор больно. ${base}`;
 
-  if (length === 'terse') return limitWords(firstSentence(rendered), 18);
+  if (length === 'terse') return limitWords(id === 'defiant' ? rendered : firstSentence(rendered), 18);
   if (length === 'expanded' && wordCount(rendered) < 18 && id === 'neutral') return `${rendered} Я хочу объяснить это до конца, без недомолвок.`;
   return rendered;
 };
