@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const testUrl = process.env.TEST_URL ?? 'http://127.0.0.1:4173/tavernborne/';
@@ -13,6 +13,34 @@ page.on('pageerror', (error) => pageErrors.push(error.message));
 page.on('console', (message) => {
   if (message.type() === 'error') pageErrors.push(message.text());
 });
+
+const inspectGlb = (filePath) => {
+  const bytes = readFileSync(filePath);
+  assert.equal(bytes.toString('ascii', 0, 4), 'glTF', 'Generated character is not a GLB file');
+  assert.equal(bytes.readUInt32LE(4), 2, 'Unsupported GLB version');
+  let offset = 12;
+  let json;
+  while (offset + 8 <= bytes.length) {
+    const chunkLength = bytes.readUInt32LE(offset);
+    const chunkType = bytes.readUInt32LE(offset + 4);
+    const start = offset + 8;
+    const end = start + chunkLength;
+    if (chunkType === 0x4e4f534a) {
+      json = JSON.parse(bytes.subarray(start, end).toString('utf8').replace(/[\u0000\u0020]+$/g, ''));
+      break;
+    }
+    offset = end;
+  }
+  assert.ok(json, 'GLB JSON chunk is missing');
+  return {
+    animationNames: (json.animations ?? []).map((animation) => animation.name ?? '(unnamed)'),
+    animationCount: json.animations?.length ?? 0,
+    meshCount: json.meshes?.length ?? 0,
+    skinCount: json.skins?.length ?? 0,
+    nodeCount: json.nodes?.length ?? 0,
+    sceneCount: json.scenes?.length ?? 0,
+  };
+};
 
 const heroState = async (id) => {
   const label = page.getByTestId(`hero-3d-${id}`);
@@ -31,6 +59,12 @@ const advanceHour = async (wait = 1000) => {
 };
 
 try {
+  stage = 'glb-metadata';
+  diagnostics.glb = inspectGlb('public/assets/quaternius/characters/universalHumanoid/model.glb');
+  assert.ok(diagnostics.glb.meshCount > 0, 'Animated GLB contains no visible mesh');
+  assert.ok(diagnostics.glb.skinCount > 0, 'Animated GLB contains no skeleton skin');
+  assert.ok(diagnostics.glb.animationCount > 0, 'Animated GLB contains no animation clips');
+
   stage = 'manifest';
   console.log(`Opening Tavernborne asset build at ${testUrl}...`);
   await page.goto(testUrl, { waitUntil: 'domcontentloaded' });
