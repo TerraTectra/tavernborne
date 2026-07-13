@@ -2,6 +2,7 @@ import { cloneWorld } from './internal';
 import { advanceLifeScenes, lifeDirectiveForHero, prepareLifeScenes } from './life-scenes';
 import type { ActionId, WorldState } from './model';
 import { advancePhysicalBodies, type BodyActionMap } from './physical-body';
+import { choreographDirective } from './social-choreography';
 import {
   advanceLivingSimulation as advanceExpeditionVisualSimulation,
   visualDirectiveForHero as expeditionVisualDirectiveForHero,
@@ -25,5 +26,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
   return world;
 };
 
-export const visualDirectiveForHero = (world: WorldState, heroId: string) =>
-  expeditionVisualDirectiveForHero(world, heroId) ?? lifeDirectiveForHero(world, heroId);
+export const visualDirectiveForHero = (world: WorldState, heroId: string) => {
+  const base = expeditionVisualDirectiveForHero(world, heroId) ?? lifeDirectiveForHero(world, heroId);
+  return choreographDirective(world, heroId, base);
+};
