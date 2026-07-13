@@ -1,0 +1,66 @@
+name: Public Emotional Performance v1 verify
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install chromium
+
+      - name: Wait for merged public bundle
+        run: |
+          set -euo pipefail
+          public_url="https://terratectra.github.io/tavernborne/"
+          for attempt in {1..90}; do
+            html="$(curl -fsSL "${public_url}?verify=${GITHUB_RUN_ID}-${attempt}" || true)"
+            asset="$(printf '%s' "$html" | grep -oE 'assets/index-[^"[:space:]]+\.js' | head -n 1 || true)"
+            if [ -n "$asset" ]; then
+              bundle="$(curl -fsSL "${public_url}${asset}?verify=${GITHUB_RUN_ID}-${attempt}" || true)"
+              if printf '%s' "$bundle" | grep -q 'data-emotional-performance'; then
+                echo "Merged Emotional Performance bundle is public: $asset"
+                exit 0
+              fi
+            fi
+            sleep 4
+          done
+          echo "Merged Emotional Performance bundle did not appear on GitHub Pages."
+          exit 1
+
+      - name: Verify public Emotional Performance v1 in Chromium
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: node scripts/emotional-performance-smoke.mjs
+
+      - name: Upload public emotional verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-emotional-performance-v1-verification
+          path: |
+            emotional-performance-diagnostics.json
+            emotional-performance-profiles.png
+            emotional-performance-affection.png
+            emotional-performance-fear.png
+            emotional-performance-conflict.png
+            emotional-performance-final.png
+          if-no-files-found: ignore
