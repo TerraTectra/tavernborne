@@ -4,7 +4,7 @@ import { performDialogue } from './dialogue-performance';
 import { performEmotion } from './emotional-performance';
 import { cloneWorld } from './internal';
 import { advanceLifeScenes, lifeDirectiveForHero, prepareLifeScenes } from './life-scenes';
-import type { ActionId, WorldState } from './model';
+import type { ActionId, JournalEntry, WorldState } from './model';
 import { advancePhysicalBodies, type BodyActionMap } from './physical-body';
 import { refineChoreographyDirective } from './refine-social-choreography';
 import { performRelationship } from './relationship-performance';
@@ -13,6 +13,19 @@ import {
   advanceLivingSimulation as advanceExpeditionVisualSimulation,
   visualDirectiveForHero as expeditionVisualDirectiveForHero,
 } from './visual-scenes';
+
+const advanceDueConversationConsequences = (world: WorldState): void => {
+  const future: JournalEntry[] = [];
+  const current: JournalEntry[] = [];
+  world.journal.forEach((entry) => (entry.tick > world.tick ? future : current).push(entry));
+  if (!future.length) {
+    advanceConversationConsequences(world);
+    return;
+  }
+  world.journal = current;
+  advanceConversationConsequences(world);
+  world.journal = [...future, ...world.journal];
+};
 
 export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldState => {
   let world = state;
@@ -25,11 +38,11 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
       ]),
     );
     prepareLifeScenes(prepared, prepared.tick + 1);
-    advanceConversationConsequences(prepared);
+    advanceDueConversationConsequences(prepared);
     world = advanceExpeditionVisualSimulation(prepared, 1);
     advancePhysicalBodies(world, 1, previousActions);
     advanceLifeScenes(world);
-    advanceConversationConsequences(world);
+    advanceDueConversationConsequences(world);
   }
   return world;
 };
