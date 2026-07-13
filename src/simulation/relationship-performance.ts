@@ -121,6 +121,9 @@ export const relationshipPerformanceForHero = (world: WorldState, heroId: string
   if (lead.stance === 'loyal') { scores.respectful += 18; scores.deferential += 12; }
   if (lead.stance === 'deferential') scores.deferential += 24;
   if (partner.condition.injury >= 28 && liking + trust + closeness > 45) scores.protective += 28;
+  if (fear >= 65) scores.intimidated += 32;
+  if (resentment >= 65) scores.resentful += 42;
+  if (rivalry >= 65) scores.rivalrous += 22;
 
   const [winner, rawScore] = (Object.entries(scores) as [Exclude<RelationshipPerformanceId, 'neutral'>, number][]).sort((a, b) => b[1] - a[1])[0];
   const id: RelationshipPerformanceId = rawScore >= 42 ? winner : 'neutral';
