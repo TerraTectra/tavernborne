@@ -1,0 +1,122 @@
+.visual-polish-camp-layer,
+.visual-polish-dungeon-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.visual-polish-camp-layer {
+  z-index: 36;
+}
+
+.visual-polish-dungeon-layer {
+  z-index: 8;
+}
+
+.visual-polish-dungeon-layer canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+[data-testid="camp-3d-layer"] canvas {
+  filter: saturate(1.1) contrast(1.055) brightness(1.045);
+  transform: scale(1.025);
+  transform-origin: center;
+}
+
+.world3d-dungeon-shell > canvas {
+  filter: saturate(1.06) contrast(1.075) brightness(1.025);
+  transform: scale(1.015);
+  transform-origin: center;
+}
+
+.visual-polish-camp-sun,
+.visual-polish-camp-firelight,
+.visual-polish-camp-vignette,
+.visual-polish-dungeon-vignette,
+.visual-polish-grain {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.visual-polish-camp-sun {
+  background:
+    radial-gradient(circle at 35% 18%, rgba(255, 226, 165, 0.12), transparent 27%),
+    linear-gradient(135deg, rgba(255, 224, 166, 0.07), transparent 42%);
+  mix-blend-mode: screen;
+}
+
+.visual-polish-camp-firelight {
+  background:
+    radial-gradient(circle at 48% 41%, rgba(255, 143, 56, 0.16), transparent 17%),
+    radial-gradient(circle at 60% 29%, rgba(255, 201, 116, 0.09), transparent 20%);
+  mix-blend-mode: screen;
+  animation: camp-firelight-pulse 3.4s ease-in-out infinite;
+}
+
+.visual-polish-camp-vignette {
+  background:
+    linear-gradient(to bottom, rgba(2, 7, 5, 0.16), transparent 22%, transparent 76%, rgba(2, 6, 4, 0.36)),
+    radial-gradient(circle at center, transparent 50%, rgba(2, 8, 5, 0.32) 100%);
+}
+
+.visual-polish-dungeon-vignette {
+  background:
+    radial-gradient(circle at 50% 48%, transparent 42%, rgba(2, 5, 9, 0.36) 100%),
+    linear-gradient(to bottom, rgba(7, 12, 18, 0.16), transparent 34%, rgba(2, 4, 7, 0.24));
+}
+
+.visual-polish-grain {
+  opacity: 0.065;
+  background-image:
+    repeating-radial-gradient(circle at 0 0, transparent 0, rgba(255, 255, 255, 0.11) 1px, transparent 2px, transparent 5px);
+  background-size: 7px 7px;
+  mix-blend-mode: soft-light;
+}
+
+.world3d-hero-label {
+  border-color: rgba(252, 211, 125, 0.36);
+  background: linear-gradient(180deg, rgba(10, 14, 17, 0.93), rgba(4, 7, 10, 0.88));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.52), 0 0 12px rgba(255, 203, 105, 0.06);
+}
+
+.world3d-hero-label-selected {
+  border-color: rgba(255, 232, 157, 0.82);
+  background: linear-gradient(180deg, rgba(62, 43, 17, 0.95), rgba(25, 18, 8, 0.92));
+  box-shadow: 0 0 22px rgba(250, 204, 21, 0.3), 0 10px 24px rgba(0, 0, 0, 0.58);
+}
+
+.world3d-bubble {
+  border-color: rgba(204, 190, 255, 0.42);
+  background: linear-gradient(160deg, rgba(24, 19, 39, 0.96), rgba(8, 8, 17, 0.94));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.58), 0 0 18px rgba(139, 92, 246, 0.08);
+}
+
+.world3d-corner-badge,
+.world3d-dungeon-header,
+.world3d-dungeon-decision {
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.56), inset 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.dungeon3d-room-label {
+  border-color: rgba(154, 176, 196, 0.28);
+  background: linear-gradient(180deg, rgba(8, 13, 19, 0.93), rgba(3, 6, 10, 0.89));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.52), 0 0 12px rgba(94, 162, 205, 0.07);
+}
+
+@keyframes camp-firelight-pulse {
+  0%, 100% { opacity: 0.82; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.018); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visual-polish-camp-firelight {
+    animation: none;
+  }
+}
