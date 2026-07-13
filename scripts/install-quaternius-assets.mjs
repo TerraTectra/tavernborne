@@ -7,6 +7,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const cacheRoot = path.join(projectRoot, '.asset-cache', 'quaternius');
 const outputRoot = path.join(projectRoot, 'public', 'assets', 'quaternius');
 const modelsRoot = path.join(outputRoot, 'models');
+const charactersRoot = path.join(outputRoot, 'characters');
 
 const packs = [
   {
@@ -30,6 +31,13 @@ const packs = [
     downloadUrl: 'https://store.godotengine.org/asset/quaternius/stylized-nature-megakit/download/31/',
     license: 'CC0-1.0',
   },
+  {
+    id: 'universal-animation-library',
+    name: 'Universal Animation Library',
+    source: 'https://store.godotengine.org/asset/quaternius/universal-animation-library/',
+    downloadUrl: 'https://store.godotengine.org/asset/quaternius/universal-animation-library/download/44/',
+    license: 'CC0-1.0',
+  },
 ];
 
 const targets = [
@@ -46,6 +54,17 @@ const targets = [
   { id: 'tree', pack: 'stylized-nature-megakit', keywords: ['tree', 'pine', 'oak'], negative: ['stump'], size: 1.5 },
   { id: 'rock', pack: 'stylized-nature-megakit', keywords: ['rock', 'stone'], negative: [], size: 0.9 },
   { id: 'bush', pack: 'stylized-nature-megakit', keywords: ['bush', 'plant', 'grass'], negative: [], size: 0.75 },
+];
+
+const characterTargets = [
+  {
+    id: 'universalHumanoid',
+    pack: 'universal-animation-library',
+    keywords: ['universal', 'animation', 'library', 'character', 'humanoid', 'standard'],
+    negative: ['preview', 'sample', 'godot', 'unity', 'unreal'],
+    targetHeight: 2.25,
+    compatibleRig: 'Quaternius Universal Humanoid',
+  },
 ];
 
 function normalize(value) {
@@ -72,9 +91,7 @@ async function walk(dir) {
       continue;
     }
 
-    if (entry.isFile()) {
-      files.push(fullPath);
-    }
+    if (entry.isFile()) files.push(fullPath);
   }
 
   return files;
@@ -90,16 +107,12 @@ async function downloadPack(pack) {
     const response = await fetch(pack.downloadUrl, {
       redirect: 'follow',
       headers: {
-        'User-Agent': 'TavernborneAssetInstaller/1.0 (+https://github.com/TerraTectra/tavernborne)',
+        'User-Agent': 'TavernborneAssetInstaller/1.1 (+https://github.com/TerraTectra/tavernborne)',
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`[quaternius] ${pack.name} download failed: ${response.status} ${response.statusText}`);
-    }
-
-    const bytes = Buffer.from(await response.arrayBuffer());
-    await writeFile(zipPath, bytes);
+    if (!response.ok) throw new Error(`[quaternius] ${pack.name} download failed: ${response.status} ${response.statusText}`);
+    await writeFile(zipPath, Buffer.from(await response.arrayBuffer()));
   }
 
   if (!(await exists(path.join(extractDir, '.extracted')))) {
@@ -118,7 +131,7 @@ function scoreCandidate(filePath, target) {
   const basename = normalize(path.basename(filePath, path.extname(filePath)));
   let score = 0;
 
-  if (filePath.toLowerCase().endsWith('.glb')) score += 8;
+  if (filePath.toLowerCase().endsWith('.glb')) score += 12;
   if (text.includes('/gltf/') || text.includes('/glb/')) score += 4;
   if (text.includes('/models/')) score += 2;
 
@@ -139,14 +152,16 @@ function scoreCandidate(filePath, target) {
   return score;
 }
 
-function selectCandidate(files, target) {
-  const modelFiles = files.filter((file) => ['.gltf', '.glb'].includes(path.extname(file).toLowerCase()));
+function selectCandidate(files, target, options = {}) {
+  const allowed = options.glbOnly ? ['.glb'] : ['.gltf', '.glb'];
+  const modelFiles = files.filter((file) => allowed.includes(path.extname(file).toLowerCase()));
   if (modelFiles.length === 0) return null;
 
   const ranked = modelFiles
     .map((file) => ({ file, score: scoreCandidate(file, target) }))
     .sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
 
+  if (options.acceptAny && ranked[0]) return ranked[0];
   return ranked[0]?.score > 0 ? ranked[0] : null;
 }
 
@@ -173,20 +188,15 @@ async function copyModel(sourceFile, targetDir) {
   const json = JSON.parse(await readFile(sourceFile, 'utf-8'));
   await writeFile(targetModel, JSON.stringify(json, null, 2), 'utf-8');
 
-  for (const buffer of json.buffers ?? []) {
-    await copyDependency(sourceDir, targetDir, buffer.uri);
-  }
-
-  for (const image of json.images ?? []) {
-    await copyDependency(sourceDir, targetDir, image.uri);
-  }
-
+  for (const buffer of json.buffers ?? []) await copyDependency(sourceDir, targetDir, buffer.uri);
+  for (const image of json.images ?? []) await copyDependency(sourceDir, targetDir, image.uri);
   return 'model.gltf';
 }
 
 async function main() {
   await rm(outputRoot, { recursive: true, force: true });
   await mkdir(modelsRoot, { recursive: true });
+  await mkdir(charactersRoot, { recursive: true });
 
   const extractedPacks = new Map();
   const sourceStatus = [];
@@ -204,6 +214,7 @@ async function main() {
   }
 
   const models = {};
+  const characters = {};
   const missing = [];
 
   for (const target of targets) {
@@ -221,10 +232,8 @@ async function main() {
 
     const targetDir = path.join(modelsRoot, target.id);
     const modelFile = await copyModel(candidate.file, targetDir);
-    const publicPath = `assets/quaternius/models/${target.id}/${modelFile}`;
-
     models[target.id] = {
-      file: publicPath,
+      file: `assets/quaternius/models/${target.id}/${modelFile}`,
       targetSize: target.size,
       sourcePack: packData.pack.name,
       sourceFile: path.relative(packData.extractedDir, candidate.file).replaceAll('\\', '/'),
@@ -232,20 +241,48 @@ async function main() {
     };
   }
 
+  for (const target of characterTargets) {
+    const packData = extractedPacks.get(target.pack);
+    if (!packData) {
+      missing.push({ id: target.id, reason: `character pack ${target.pack} unavailable` });
+      continue;
+    }
+
+    const candidate = selectCandidate(packData.files, target, { glbOnly: true, acceptAny: true });
+    if (!candidate) {
+      missing.push({ id: target.id, reason: 'no animated GLB candidate found' });
+      continue;
+    }
+
+    const targetDir = path.join(charactersRoot, target.id);
+    const modelFile = await copyModel(candidate.file, targetDir);
+    characters[target.id] = {
+      file: `assets/quaternius/characters/${target.id}/${modelFile}`,
+      targetHeight: target.targetHeight,
+      compatibleRig: target.compatibleRig,
+      sourcePack: packData.pack.name,
+      sourceFile: path.relative(packData.extractedDir, candidate.file).replaceAll('\\', '/'),
+      score: candidate.score,
+      animationPolicy: 'runtime-discovery',
+    };
+  }
+
   const manifest = {
     generatedAt: new Date().toISOString(),
     license: 'CC0-1.0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    usage: 'Free for personal, educational and commercial use.',
     sources: sourceStatus,
     models,
+    characters,
     missing,
   };
 
   await writeFile(path.join(outputRoot, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
-  console.log(`[quaternius] Generated ${Object.keys(models).length} curated models in ${path.relative(projectRoot, outputRoot)}`);
+  await writeFile(path.join(outputRoot, 'LICENSES.md'), `# Quaternius assets\n\nAll generated assets in this directory originate from Quaternius packs marked **CC0 1.0 Universal**.\n\n- Universal Animation Library: https://store.godotengine.org/asset/quaternius/universal-animation-library/\n- Medieval Village MegaKit: https://store.godotengine.org/asset/quaternius/medieval-village-megakit/\n- Fantasy Props MegaKit: https://store.godotengine.org/asset/quaternius/fantasy-props-megakit/\n- Stylized Nature MegaKit: https://store.godotengine.org/asset/quaternius/stylized-nature-megakit/\n- License: https://creativecommons.org/publicdomain/zero/1.0/\n\nThe generated files are build artifacts and are recreated by scripts/install-quaternius-assets.mjs.\n`, 'utf-8');
 
-  if (missing.length > 0) {
-    console.warn(`[quaternius] Missing ${missing.length} target model(s). Procedural fallback will be used for those entries.`);
-  }
+  console.log(`[quaternius] Generated ${Object.keys(models).length} environment models and ${Object.keys(characters).length} animated humanoid asset(s) in ${path.relative(projectRoot, outputRoot)}`);
+  if (missing.length > 0) console.warn(`[quaternius] Missing ${missing.length} target asset(s). Procedural fallback will be used for those entries.`);
 }
 
 main().catch((error) => {
