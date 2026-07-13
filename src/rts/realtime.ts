@@ -152,7 +152,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
     let frame = 0;
 
     const update = (now: number) => {
-      const dt = Math.min(0.08, (now - previous) / 1000);
+      const dt = Math.min(0.5, Math.max(0, (now - previous) / 1000));
       previous = now;
 
       setActors((current) => {

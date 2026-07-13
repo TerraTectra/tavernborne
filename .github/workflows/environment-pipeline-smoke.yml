@@ -1,0 +1,81 @@
+name: Environment pipeline smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and curated assets
+        run: npm run build
+
+      - name: Validate environment manifest
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const manifest = JSON.parse(fs.readFileSync('public/assets/quaternius/manifest.json', 'utf8'));
+          const required = ['tavern', 'blacksmith', 'dungeonGate', 'market', 'tree', 'rock', 'bush', 'lamp', 'crate', 'barrel'];
+          for (const id of required) {
+            if (!manifest.models?.[id]?.file) throw new Error(`missing environment model: ${id}`);
+          }
+          if (manifest.license !== 'CC0-1.0') throw new Error(`unexpected license: ${manifest.license}`);
+          console.log(JSON.stringify({ models: required.map((id) => manifest.models[id]), missing: manifest.missing }, null, 2));
+          NODE
+
+      - name: Capture model catalog
+        run: |
+          find .asset-cache/quaternius -type f \( -iname '*.gltf' -o -iname '*.glb' \) \
+            | sed 's#^.asset-cache/quaternius/##' \
+            | sort > environment-model-catalog.txt
+          wc -l environment-model-catalog.txt
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/tavernborne-environment-preview.log 2>&1 &
+          echo $! > /tmp/tavernborne-environment-preview.pid
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:4173/tavernborne/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tavernborne-environment-preview.log
+          exit 1
+
+      - name: Test curated environment in Chromium
+        run: node scripts/environment-pipeline-smoke.mjs
+
+      - name: Upload environment diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: environment-pipeline-diagnostics
+          path: |
+            environment-pipeline-diagnostics.json
+            environment-pipeline-*.png
+            environment-model-catalog.txt
+            public/assets/quaternius/manifest.json
+          if-no-files-found: ignore
