@@ -1,0 +1,84 @@
+name: Animated asset pipeline smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and curated assets
+        run: npm run build
+
+      - name: Validate generated asset contract
+        run: |
+          test -s public/assets/quaternius/manifest.json
+          test -s public/assets/quaternius/LICENSES.md
+          test -s public/assets/quaternius/characters/universalHumanoid/model.glb
+          node - <<'NODE'
+          const fs = require('fs');
+          const manifest = JSON.parse(fs.readFileSync('public/assets/quaternius/manifest.json', 'utf8'));
+          const character = manifest.characters?.universalHumanoid;
+          if (!character?.file) throw new Error('universalHumanoid is absent from the manifest');
+          if (manifest.license !== 'CC0-1.0') throw new Error(`unexpected license: ${manifest.license}`);
+          const source = manifest.sources?.find((entry) => entry.id === 'universal-animation-library');
+          if (source?.status !== 'ready') throw new Error(`animation library source is not ready: ${JSON.stringify(source)}`);
+          console.log(JSON.stringify({ character, source, missing: manifest.missing }, null, 2));
+          NODE
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/tavernborne-assets-preview.log 2>&1 &
+          echo $! > /tmp/tavernborne-assets-preview.pid
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:4173/tavernborne/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tavernborne-assets-preview.log
+          exit 1
+
+      - name: Test animated GLB characters in Chromium
+        run: node scripts/asset-pipeline-smoke.mjs
+
+      - name: Upload asset diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animated-asset-diagnostics
+          path: |
+            asset-pipeline-diagnostics.json
+            public/assets/quaternius/manifest.json
+            public/assets/quaternius/LICENSES.md
+          if-no-files-found: ignore
+
+      - name: Upload asset screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animated-asset-screenshots
+          path: asset-pipeline-*.png
+          if-no-files-found: ignore
