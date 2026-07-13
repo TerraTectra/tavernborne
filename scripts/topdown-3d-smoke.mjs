@@ -38,9 +38,7 @@ try {
   diagnosticState.campBox = campBox;
   assert.ok(campBox && campBox.width > 700 && campBox.height > 500, '3D camp canvas is not filling the game map');
 
-  for (const id of ['mira', 'kael', 'liora']) {
-    await page.getByTestId(`hero-3d-${id}`).waitFor({ timeout: 10000 });
-  }
+  for (const id of ['mira', 'kael', 'liora']) await page.getByTestId(`hero-3d-${id}`).waitFor({ timeout: 10000 });
   assert.equal(await page.getByTestId('hero-3d-mira').count(), 1, 'Mira 3D body is missing');
   assert.equal(await page.getByTestId('hero-3d-kael').count(), 1, 'Kael 3D body is missing');
   assert.equal(await page.getByTestId('hero-3d-liora').count(), 1, 'Liora 3D body is missing');
@@ -52,6 +50,7 @@ try {
   const selectedPanelText = await page.locator('aside').textContent();
   diagnosticState.selectedPanelText = selectedPanelText?.slice(0, 600);
   assert.ok(selectedPanelText?.includes('Лиора'), '3D hero selection did not reach the selected-character panel');
+  await page.screenshot({ path: 'topdown-3d-camp.png', fullPage: true });
 
   stage = 'time-advance';
   console.log('Checking that the existing simulation still drives 3D movement...');
@@ -81,9 +80,9 @@ try {
 
   stage = 'room-reveal';
   console.log('Checking live room reveal in the 3D dungeon...');
-  await advanceHour(1800);
-  assert.equal(await page.getByTestId('dungeon-room-hall').getAttribute('data-discovered'), 'true', '3D scout did not reveal the next room');
-  assert.ok((await page.getByTestId('dungeon-phase').textContent())?.includes('Разведка'), '3D dungeon phase did not advance');
+  await advanceHour(500);
+  await page.waitForFunction(() => document.querySelector('[data-testid="dungeon-room-hall"]')?.getAttribute('data-discovered') === 'true', undefined, { timeout: 8000 });
+  await page.getByTestId('dungeon-phase').filter({ hasText: 'Разведка' }).waitFor({ timeout: 8000 });
 
   stage = 'page-errors';
   assert.equal(pageErrors.length, 0, `Page errors: ${pageErrors.join(' | ')}`);
