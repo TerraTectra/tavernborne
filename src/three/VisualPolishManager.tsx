@@ -33,13 +33,16 @@ function usePortalTarget(selector: string) {
     let observer: MutationObserver | null = null;
     const locate = () => {
       const next = document.querySelector<HTMLElement>(selector);
-      setTarget((current) => current === next ? current : next);
-      return Boolean(next);
+      if (!next) return false;
+      setTarget(next);
+      observer?.disconnect();
+      return true;
     };
 
-    locate();
-    observer = new MutationObserver(locate);
-    observer.observe(document.body, { childList: true, subtree: true });
+    if (!locate()) {
+      observer = new MutationObserver(locate);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
     return () => observer?.disconnect();
   }, [selector]);
 
@@ -60,7 +63,7 @@ function useWorldSnapshot() {
     };
 
     refresh();
-    const interval = window.setInterval(refresh, 420);
+    const interval = window.setInterval(refresh, 600);
     return () => window.clearInterval(interval);
   }, []);
 
