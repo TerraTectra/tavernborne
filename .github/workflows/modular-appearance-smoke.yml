@@ -25,7 +25,7 @@ jobs:
         run: npm install
 
       - name: Build application and curated assets
-        run: npm run build
+        run: npm run build 2>&1 | tee modular-appearance-build.log
 
       - name: Install Playwright Chromium
         run: |
@@ -54,6 +54,7 @@ jobs:
         with:
           name: modular-appearance-diagnostics
           path: |
+            modular-appearance-build.log
             modular-appearance-diagnostics.json
             modular-appearance-*.png
           if-no-files-found: ignore
