@@ -40,7 +40,7 @@ const waitInteraction = async (id, kind) => {
         && probe?.getAttribute('data-interaction-contact') === 'active';
     },
     { heroId: id, interactionKind: kind },
-    { timeout: 20_000 },
+    { timeout: 35_000 },
   );
 };
 

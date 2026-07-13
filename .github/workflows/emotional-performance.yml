@@ -1,0 +1,65 @@
+name: Emotional Performance v1 smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > emotional-performance-preview.log 2>&1 &
+          echo $! > emotional-performance-preview.pid
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat emotional-performance-preview.log
+          exit 1
+
+      - name: Test Emotional Performance v1 in Chromium
+        run: node scripts/emotional-performance-smoke.mjs
+
+      - name: Upload emotional performance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emotional-performance-v1-diagnostics
+          path: |
+            emotional-performance-diagnostics.json
+            emotional-performance-profiles.png
+            emotional-performance-affection.png
+            emotional-performance-fear.png
+            emotional-performance-conflict.png
+            emotional-performance-final.png
+            emotional-performance-preview.log
+          if-no-files-found: ignore

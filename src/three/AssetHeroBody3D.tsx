@@ -52,6 +52,14 @@ export interface AssetHeroBody3DProps {
     socialDistance?: ChoreographyDistance;
     pairGesture?: ChoreographyGesture;
     partnerId?: string;
+    emotionalPerformance?: RuntimeActor['emotionalPerformance'];
+    emotionalIntensity?: number;
+    movementRate?: number;
+    animationRate?: number;
+    bodyLean?: number;
+    bodyTension?: number;
+    expressionSymbol?: string;
+    expressionColor?: string;
   };
   position: [number, number, number];
   selected?: boolean;
@@ -229,6 +237,7 @@ function RiggedHeroBody3D({
   onSelect,
 }: AssetHeroBody3DProps & { assetUrl: string; targetHeight: number }) {
   const root = useRef<Group>(null);
+  const performanceRoot = useRef<Group>(null);
   const modelRoot = useRef<Group>(null);
   const currentAction = useRef<AnimationAction | null>(null);
   const gltf = useGLTF(assetUrl);
@@ -258,6 +267,11 @@ function RiggedHeroBody3D({
   const posture = interactionPostureForActor(actor);
   const interactionLabel = interactionLabelForActor(actor);
   const modelPose = modelPoseFor(posture);
+  const emotionalIntensity = clamp((actor.emotionalIntensity ?? 0) / 100, 0, 1);
+  const emotionalRate = clamp(actor.animationRate ?? 1, 0.45, 1.35);
+  const emotionalLean = (actor.bodyLean ?? 0) * emotionalIntensity;
+  const emotionalTension = clamp(actor.bodyTension ?? 0, 0, 1) * emotionalIntensity;
+  const emotionalSlouch = ['guilty', 'withdrawn', 'exhausted'].includes(actor.emotionalPerformance ?? '') ? emotionalIntensity * 0.055 : 0;
   const bubbleLane = clamp(actor.bubbleLane ?? 0, -2, 2);
   const bubbleX = bubbleLane * 0.4;
   const bubbleY = (compact ? 3.03 : 3.42) + Math.abs(bubbleLane) * 0.1;
@@ -275,12 +289,12 @@ function RiggedHeroBody3D({
     currentAction.current?.fadeOut(0.22);
     next.reset().setLoop(LoopRepeat, Infinity).fadeIn(0.24).play();
     const effort = intent === 'walk' ? 1.05 : intent === 'train' ? 1.08 : intent === 'sleep' ? 0.58 : 0.92;
-    next.timeScale = clamp(effort * (1 - fatigue * 0.34) * (1 - injury * 0.18), 0.38, 1.25);
+    next.timeScale = clamp(effort * emotionalRate * (1 - fatigue * 0.34) * (1 - injury * 0.18), 0.3, 1.45);
     currentAction.current = next;
     return () => {
       next.fadeOut(0.16);
     };
-  }, [actions, clipName, fatigue, injury, intent]);
+  }, [actions, clipName, emotionalRate, fatigue, injury, intent]);
 
   useEffect(() => {
     if (appearance.heldEquipment) appearance.heldEquipment.visible = equipmentDrawn;
@@ -289,19 +303,33 @@ function RiggedHeroBody3D({
 
   useFrame(({ clock }) => {
     if (!root.current) return;
+    const movementRate = clamp(actor.movementRate ?? 1, 0.55, 1.3);
     root.current.rotation.y = facingAngle[actor.facing ?? 'down'];
     root.current.rotation.z = injury * 0.09 * Math.sin(clock.elapsedTime * 1.15);
-    root.current.position.y = position[1] + (actor.phase === 'moving' ? Math.abs(Math.sin(clock.elapsedTime * 7.8)) * 0.018 : 0);
+    root.current.position.y = position[1] + (actor.phase === 'moving' ? Math.abs(Math.sin(clock.elapsedTime * 7.8 * movementRate)) * 0.018 : 0);
+    if (!performanceRoot.current) return;
+    performanceRoot.current.position.y = modelPose.position[1] - emotionalSlouch;
+    performanceRoot.current.rotation.x = modelPose.rotation[0] + emotionalLean;
+    performanceRoot.current.rotation.y = modelPose.rotation[1];
+    performanceRoot.current.rotation.z = modelPose.rotation[2] + Math.sin(clock.elapsedTime * (5.5 + emotionalTension * 5)) * emotionalTension * 0.012;
   });
 
   const displayScale = appearance.scale * heightScale;
   const worldPosition = actor.position;
+  const showExpression = Boolean(actor.expressionSymbol) && emotionalIntensity >= 0.35;
+  const expressionColor = actor.expressionColor ?? '#cbd5e1';
   return (
     <group ref={root} position={position} onClick={(event) => { event.stopPropagation(); onSelect?.(); }}>
       <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]}>
         <circleGeometry args={[selected ? 0.5 : 0.36, 32]} />
         <meshBasicMaterial color={selected ? '#f7d77b' : '#111827'} transparent opacity={selected ? 0.48 : 0.24} />
       </mesh>
+      {actor.emotionalPerformance && actor.emotionalPerformance !== 'neutral' && emotionalIntensity >= 0.28 && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.024, 0]}>
+          <ringGeometry args={[0.4, 0.54 + emotionalIntensity * 0.08, 36]} />
+          <meshBasicMaterial color={expressionColor} transparent opacity={0.1 + emotionalIntensity * 0.24} depthWrite={false} />
+        </mesh>
+      )}
       {selected && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.028, 0]}>
           <torusGeometry args={[0.5, 0.026, 8, 40]} />
@@ -310,7 +338,7 @@ function RiggedHeroBody3D({
       )}
 
       <HeroInteraction3D heroId={hero.id} actor={actor} compact={compact} />
-      <group position={modelPose.position} rotation={modelPose.rotation}>
+      <group ref={performanceRoot} position={modelPose.position} rotation={modelPose.rotation}>
         <group ref={modelRoot} scale={[displayScale * widthScale, displayScale, displayScale * depthScale]} position={[0, appearance.floorOffset * displayScale, 0]}>
           <primitive object={appearance.model} />
         </group>
@@ -341,6 +369,13 @@ function RiggedHeroBody3D({
           data-bubble-lane={actor.bubbleLane ?? 0}
           data-partner-id={actor.partnerId ?? 'none'}
           data-focus-point={actor.focusPoint ? `${actor.focusPoint.x.toFixed(2)},${actor.focusPoint.y.toFixed(2)}` : 'none'}
+          data-emotional-performance={actor.emotionalPerformance ?? 'neutral'}
+          data-emotional-intensity={(actor.emotionalIntensity ?? 0).toFixed(1)}
+          data-movement-rate={(actor.movementRate ?? 1).toFixed(2)}
+          data-animation-rate={(actor.animationRate ?? 1).toFixed(2)}
+          data-body-lean={(actor.bodyLean ?? 0).toFixed(3)}
+          data-body-tension={(actor.bodyTension ?? 0).toFixed(2)}
+          data-expression-symbol={actor.expressionSymbol ?? ''}
           data-facing={actor.facing ?? 'down'}
           data-world-x={worldPosition ? worldPosition.x.toFixed(2) : 'na'}
           data-world-y={worldPosition ? worldPosition.y.toFixed(2) : 'na'}
@@ -350,9 +385,31 @@ function RiggedHeroBody3D({
           {actor.roleLabel && <span>{actor.roleLabel}</span>}
         </button>
       </Html>
+      {showExpression && (
+        <Html center position={[0.48 + bubbleX * 0.2, compact ? 2.88 : 3.25, 0]} zIndexRange={[36, 13]}>
+          <span
+            data-testid={`emotion-expression-${hero.id}`}
+            data-emotional-performance={actor.emotionalPerformance}
+            style={{
+              display: 'grid', placeItems: 'center', minWidth: 22, height: 22, padding: '0 5px', borderRadius: 999,
+              color: expressionColor, border: `1px solid ${expressionColor}99`, background: 'rgba(8, 10, 16, 0.82)',
+              boxShadow: `0 0 ${8 + emotionalIntensity * 12}px ${expressionColor}55`, fontSize: 13, fontWeight: 800,
+            }}
+          >
+            {actor.expressionSymbol}
+          </span>
+        </Html>
+      )}
       {actor.bubble && actor.phase !== 'moving' && (
         <Html center position={[bubbleX, bubbleY, 0]} zIndexRange={[35, 12]}>
-          <span className="world3d-bubble" data-bubble-lane={bubbleLane}>{actor.bubble}</span>
+          <span
+            className="world3d-bubble"
+            data-bubble-lane={bubbleLane}
+            data-emotional-performance={actor.emotionalPerformance ?? 'neutral'}
+            style={{ borderColor: showExpression ? `${expressionColor}88` : undefined }}
+          >
+            {actor.bubble}
+          </span>
         </Html>
       )}
       {actor.reaction && (
