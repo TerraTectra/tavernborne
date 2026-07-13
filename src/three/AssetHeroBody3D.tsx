@@ -186,7 +186,7 @@ function RiggedHeroBody3D({
   const depthScale = clamp(0.92 + (body.massKg - 64) / 180, 0.84, 1.18);
   const injury = clamp(hero.condition.injury / 100, 0, 1);
   const fatigue = clamp(hero.body.tissues.muscleFatigue / 100, 0, 1);
-  const equipmentDrawn = intent === 'train' || intent === 'dungeon';
+  const equipmentDrawn = actor.actionId === 'train' || actor.actionId === 'dungeon';
 
   useEffect(() => {
     if (!clipName) return;
