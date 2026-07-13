@@ -1,0 +1,60 @@
+name: Verify live animated asset release
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build local asset contract
+        run: npm run build
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Verify public GitHub Pages with retries
+        run: |
+          for attempt in {1..8}; do
+            echo "Live verification attempt ${attempt}"
+            if TEST_URL=https://terratectra.github.io/tavernborne/ node scripts/asset-pipeline-smoke.mjs; then
+              exit 0
+            fi
+            sleep 30
+          done
+          exit 1
+
+      - name: Upload live diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-animated-asset-diagnostics
+          path: asset-pipeline-diagnostics.json
+          if-no-files-found: ignore
+
+      - name: Upload live screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-animated-asset-screenshots
+          path: asset-pipeline-*.png
+          if-no-files-found: ignore
