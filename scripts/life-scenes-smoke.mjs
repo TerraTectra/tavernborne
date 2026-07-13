@@ -113,8 +113,14 @@ try {
   assert.ok(sceneActors.length >= 3, 'Конфликт не собрал участников и посредника на карте');
 
   stage = 'conflict-spacing';
-  const conflictXs = await Promise.all(['mira', 'kael', 'liora'].map((id) => actorNumber(id, 'data-x')));
-  assert.ok(Math.max(...conflictXs) - Math.min(...conflictXs) >= 12, 'Участники конфликта не разошлись визуально');
+  const labelCenters = await Promise.all(['mira', 'kael', 'liora'].map(async (id) => {
+    const box = await page.getByTestId(`hero-3d-${id}`).boundingBox();
+    assert.ok(box, `${id} не виден в 3D-сцене конфликта`);
+    return { id, x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }));
+  const pairDistances = labelCenters.flatMap((left, index) => labelCenters.slice(index + 1).map((right) =>
+    Math.hypot(left.x - right.x, left.y - right.y)));
+  assert.ok(Math.max(...pairDistances) >= 55, '3D-участники конфликта не разошлись визуально');
 
   stage = 'persistence';
   for (let hour = 0; hour < 5; hour += 1) await advanceHour(150);
