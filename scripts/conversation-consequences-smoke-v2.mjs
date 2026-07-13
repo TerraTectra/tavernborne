@@ -23,9 +23,18 @@ const waitRigged = async (id) => {
   );
 };
 
-const advanceHour = async (wait = 950) => {
+const advanceHour = async () => {
+  const previousTick = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
   await page.getByRole('button', { name: '+1 час', exact: true }).click({ noWaitAfter: true });
-  await page.waitForTimeout(wait);
+  await page.waitForFunction(
+    (before) => {
+      const raw = window.localStorage.getItem('tavernborne.world.v2');
+      return raw ? JSON.parse(raw).tick > before : false;
+    },
+    previousTick,
+    { timeout: 20_000 },
+  );
+  await page.waitForTimeout(350);
 };
 
 const storedWorld = () => page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')));
