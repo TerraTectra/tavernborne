@@ -4,6 +4,7 @@ import { advanceLifeScenes, lifeDirectiveForHero, prepareLifeScenes } from './li
 import type { ActionId, WorldState } from './model';
 import { advancePhysicalBodies, type BodyActionMap } from './physical-body';
 import { refineChoreographyDirective } from './refine-social-choreography';
+import { performRelationship } from './relationship-performance';
 import { choreographDirective } from './social-choreography';
 import {
   advanceLivingSimulation as advanceExpeditionVisualSimulation,
@@ -32,5 +33,6 @@ export const visualDirectiveForHero = (world: WorldState, heroId: string) => {
   const base = expeditionVisualDirectiveForHero(world, heroId) ?? lifeDirectiveForHero(world, heroId);
   const choreographed = choreographDirective(world, heroId, base);
   const refined = refineChoreographyDirective(world, heroId, choreographed);
-  return performEmotion(world, heroId, refined);
+  const emotional = performEmotion(world, heroId, refined);
+  return performRelationship(world, heroId, emotional);
 };
