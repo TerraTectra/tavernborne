@@ -11,9 +11,10 @@ page.on('console', (message) => {
   if (message.type() === 'error') pageErrors.push(message.text());
 });
 
+const click = async (locator, options = {}) => locator.click({ noWaitAfter: true, ...options });
 const actorAttribute = (heroId, attribute) => page.getByTestId(`actor-${heroId}`).getAttribute(attribute);
 const advanceHour = async (wait = 120) => {
-  await page.getByRole('button', { name: '+1 час', exact: true }).click();
+  await click(page.getByRole('button', { name: '+1 час', exact: true }));
   await page.waitForTimeout(wait);
 };
 const waitScenePhase = async (text) => {
@@ -61,15 +62,18 @@ try {
   assert.equal(await page.locator('.rts-head').count(), 3, 'Не отрисованы фигуры героев');
 
   console.log('Checking leadership model...');
-  await page.getByTestId('leadership-panel').getByRole('button').click();
+  const leadershipToggle = page.getByTestId('leadership-panel').getByRole('button');
+  await click(leadershipToggle);
   await page.getByTestId('leadership-details').waitFor();
   const leadershipText = await page.getByTestId('leadership-details').textContent();
   for (const section of ['Состояние лидера', 'Ответственность', 'Давление', 'Лояльность лидеру', 'Последние события власти']) {
     assert.ok(leadershipText?.includes(section), `Не показан раздел лидерства: ${section}`);
   }
+  await click(leadershipToggle);
+  await page.getByTestId('leadership-details').waitFor({ state: 'detached' });
 
-  await page.getByRole('button', { name: 'x1', exact: true }).click();
-  await page.getByRole('button', { name: 'x2', exact: true }).click();
+  await click(page.getByRole('button', { name: 'x1', exact: true }));
+  await click(page.getByRole('button', { name: 'x2', exact: true }));
 
   console.log('Checking synchronized breakfast...');
   await advanceHour(1700);
@@ -135,7 +139,8 @@ try {
   assert.ok(socialText?.includes('согласие') || socialText?.includes('перенос') || socialText?.includes('отказ'), 'Нет ответа на предложение');
 
   console.log('Checking save, visual scene history, leadership persistence and load...');
-  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await click(page.getByRole('button', { name: 'Сохранить', exact: true }), { force: true });
+  await page.waitForTimeout(120);
   const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')));
   assert.ok(saved.leadership?.familyLeaderId, 'Лидерство не попало в сохранение');
   assert.ok(saved.leadership?.groups?.length >= 1, 'Группы лидерства не сохраняются');
@@ -150,16 +155,16 @@ try {
     return raw ? JSON.parse(raw).tick > previous : false;
   }, { key: 'tavernborne.world.v2', previous: savedTick });
   const latestTick = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
-  await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
-  await page.waitForTimeout(100);
+  await click(page.getByRole('button', { name: 'Загрузить', exact: true }), { force: true });
+  await page.waitForTimeout(120);
   assert.ok((await page.getByTestId('world-seed').textContent())?.includes('aster-family-001'), 'Загружен неверный мир');
   const tickAfterLoad = await page.evaluate(() => JSON.parse(window.localStorage.getItem('tavernborne.world.v2')).tick);
   assert.equal(tickAfterLoad, latestTick, 'Загрузка повредила сохранённое состояние');
 
   console.log('Checking history and hidden diagnostics...');
-  await page.getByRole('button', { name: 'Открыть историю героя', exact: true }).click();
+  await click(page.getByRole('button', { name: 'Открыть историю героя', exact: true }));
   await page.getByTestId('hero-history').waitFor();
-  await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
+  await click(page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }));
   const inner = page.getByTestId('inner-model');
   await inner.waitFor();
   const innerText = await inner.textContent();
@@ -167,18 +172,18 @@ try {
 
   console.log('Checking diagnostic export and new seed...');
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Экспорт', exact: true }).click();
+  await click(page.getByRole('button', { name: 'Экспорт', exact: true }));
   const download = await downloadPromise;
   assert.ok(download.suggestedFilename().startsWith('tavernborne-'), 'Неверное имя экспорта');
   await page.getByLabel('Seed мира').fill('visual-dungeon-test-777');
-  await page.getByRole('button', { name: 'Новый мир', exact: true }).click();
+  await click(page.getByRole('button', { name: 'Новый мир', exact: true }));
   await page.waitForTimeout(900);
   assert.ok((await page.getByTestId('world-seed').textContent())?.includes('visual-dungeon-test-777'), 'Seed не применился');
   assert.ok((await page.getByTestId('leadership-panel').textContent())?.includes('лидер семьи'), 'В новом мире не назначен лидер');
 
-  await page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }).click();
-  await page.getByRole('button', { name: 'Похвалить', exact: true }).click();
-  await page.getByRole('button', { name: 'Показать журнал событий', exact: true }).click();
+  await click(page.getByRole('button', { name: 'Открыть внутреннюю модель и события', exact: true }));
+  await click(page.getByRole('button', { name: 'Похвалить', exact: true }));
+  await click(page.getByRole('button', { name: 'Показать журнал событий', exact: true }));
   await page.getByTestId('journal-panel').waitFor();
   assert.ok((await page.getByTestId('journal-panel').textContent())?.includes('Астер похвалил'), 'Событие не попало в журнал');
   assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
