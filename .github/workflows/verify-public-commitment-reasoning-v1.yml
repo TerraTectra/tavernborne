@@ -1,0 +1,56 @@
+name: Verify public Commitment Reasoning v1
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Verify merged public deployment
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: |
+          for attempt in {1..6}; do
+            echo "Public verification attempt ${attempt}/6"
+            if node scripts/commitment-reasoning-smoke.mjs; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 6 ]; then
+              sleep 20
+            fi
+          done
+          exit 1
+
+      - name: Upload public verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-commitment-reasoning-v1-diagnostics
+          path: |
+            commitment-reasoning-diagnostics.json
+            commitment-reasoning-honor.png
+            commitment-reasoning-reschedule.png
+            commitment-reasoning-break.png
+            commitment-reasoning-final.png
+          if-no-files-found: ignore
