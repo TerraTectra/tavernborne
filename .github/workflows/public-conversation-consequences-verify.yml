@@ -1,0 +1,89 @@
+name: Public Conversation Consequences v1 verify
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Wait for merged public bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          PUBLIC_ROOT="https://terratectra.github.io/tavernborne/"
+          for attempt in $(seq 1 60); do
+            curl --fail --silent --show-error --location --no-cache "${PUBLIC_ROOT}?verify=${GITHUB_RUN_ID}-${attempt}" -o public-index.html || true
+            ASSET_PATH=$(python - <<'PY'
+          import re
+          from pathlib import Path
+          text = Path('public-index.html').read_text(encoding='utf-8', errors='ignore') if Path('public-index.html').exists() else ''
+          matches = re.findall(r'<script[^>]+src=["\']([^"\']+\.js)["\']', text)
+          print(matches[-1] if matches else '')
+          PY
+            )
+            if [ -n "$ASSET_PATH" ]; then
+              if [[ "$ASSET_PATH" == /* ]]; then
+                BUNDLE_URL="https://terratectra.github.io${ASSET_PATH}"
+              else
+                BUNDLE_URL="${PUBLIC_ROOT}${ASSET_PATH#./}"
+              fi
+              curl --fail --silent --show-error --location --no-cache "${BUNDLE_URL}?verify=${GITHUB_RUN_ID}-${attempt}" -o public-bundle.js || true
+              if python - <<'PY'
+          from pathlib import Path
+          path = Path('public-bundle.js')
+          text = path.read_text(encoding='utf-8', errors='ignore') if path.exists() else ''
+          markers = ('conversationConsequences', 'Обещание зафиксировано', 'Обещание нарушено')
+          raise SystemExit(0 if any(marker in text for marker in markers) else 1)
+          PY
+              then
+                echo "Merged Conversation Consequences bundle found: $BUNDLE_URL"
+                exit 0
+              fi
+            fi
+            echo "Attempt $attempt: merged bundle not published yet"
+            sleep 10
+          done
+          echo "Merged Conversation Consequences bundle was not found on GitHub Pages"
+          exit 1
+
+      - name: Verify public Conversation Consequences v1 in Chromium
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: node scripts/conversation-consequences-smoke.mjs
+
+      - name: Upload public consequence verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-conversation-consequences-v1-verification
+          path: |
+            conversation-consequences-diagnostics.json
+            conversation-consequences-promise.png
+            conversation-consequences-fulfilled.png
+            conversation-consequences-broken.png
+            conversation-consequences-future-memory.png
+            conversation-consequences-final.png
+            public-index.html
+            public-bundle.js
+          if-no-files-found: ignore
