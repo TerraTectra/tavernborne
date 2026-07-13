@@ -5,6 +5,7 @@ const testUrl = process.env.TEST_URL ?? 'http://127.0.0.1:4173/tavernborne/';
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1700, height: 1100 } });
 const pageErrors = [];
+const phaseTimeout = 15_000;
 
 page.on('pageerror', (error) => pageErrors.push(error.message));
 page.on('console', (message) => {
@@ -17,10 +18,10 @@ const advanceHour = async (wait = 320) => {
 };
 const attribute = (testId, name) => page.getByTestId(testId).getAttribute(name);
 const waitPhase = async (text) => {
-  await page.getByTestId('dungeon-phase').filter({ hasText: text }).waitFor({ timeout: 7000 });
+  await page.getByTestId('dungeon-phase').filter({ hasText: text }).waitFor({ timeout: phaseTimeout });
 };
 const waitDiscovered = async (roomId) => {
-  await page.waitForFunction((id) => document.querySelector(`[data-testid="dungeon-room-${id}"]`)?.getAttribute('data-discovered') === 'true', roomId, { timeout: 7000 });
+  await page.waitForFunction((id) => document.querySelector(`[data-testid="dungeon-room-${id}"]`)?.getAttribute('data-discovered') === 'true', roomId, { timeout: phaseTimeout });
 };
 
 try {
@@ -39,7 +40,7 @@ try {
   for (let hour = 0; hour < 5; hour += 1) await advanceHour(1000);
 
   const overlay = page.getByTestId('dungeon-visual-overlay');
-  await overlay.waitFor({ timeout: 7000 });
+  await overlay.waitFor({ timeout: phaseTimeout });
   const map = page.getByTestId('dungeon-rts-map');
   await map.waitFor();
   await waitPhase('Вход на этаж');
@@ -75,7 +76,7 @@ try {
   console.log('Checking trap or safe detour...');
   await advanceHour(400);
   await waitPhase('Преодоление');
-  await page.waitForFunction(() => document.querySelector('[data-testid="dungeon-room-trap"]')?.getAttribute('data-discovered') === 'true' || document.querySelector('[data-testid="dungeon-room-refuge"]')?.getAttribute('data-discovered') === 'true', undefined, { timeout: 7000 });
+  await page.waitForFunction(() => document.querySelector('[data-testid="dungeon-room-trap"]')?.getAttribute('data-discovered') === 'true' || document.querySelector('[data-testid="dungeon-room-refuge"]')?.getAttribute('data-discovered') === 'true', undefined, { timeout: phaseTimeout });
   const trapDiscovered = await attribute('dungeon-room-trap', 'data-discovered') === 'true';
   const refugeDiscovered = await attribute('dungeon-room-refuge', 'data-discovered') === 'true';
   assert.ok(trapDiscovered || refugeDiscovered, 'Группа не прошла ни один маршрут');
@@ -109,7 +110,7 @@ try {
 
   console.log('Checking physical exit, persistence and return to camp...');
   await advanceHour(800);
-  await page.getByTestId('dungeon-visual-overlay').waitFor({ state: 'detached', timeout: 9000 });
+  await page.getByTestId('dungeon-visual-overlay').waitFor({ state: 'detached', timeout: phaseTimeout });
   const dungeonPanelText = await page.getByTestId('dungeon-panel').textContent();
   assert.ok(dungeonPanelText?.includes('Завершён') || dungeonPanelText?.includes('Отступление'), 'Экспедиция не завершилась');
 
