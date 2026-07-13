@@ -13,7 +13,14 @@ import {
   Vector3,
 } from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { Hero, VisualGesture, VisualProp } from '../simulation';
+import type {
+  ChoreographyDistance,
+  ChoreographyFormation,
+  ChoreographyGesture,
+  Hero,
+  VisualGesture,
+  VisualProp,
+} from '../simulation';
 import type { RuntimeActor } from '../rts/realtime';
 import {
   HeroInteraction3D,
@@ -31,12 +38,20 @@ export interface AssetHeroBody3DProps {
     heroId: string;
     phase: RuntimeActor['phase'];
     facing?: RuntimeActor['facing'];
+    position?: { x: number; y: number };
     bubble?: string;
     roleLabel?: string;
     reaction?: string;
     actionId?: RuntimeActor['actionId'];
     gesture?: VisualGesture;
     sceneProp?: VisualProp;
+    focusPoint?: { x: number; y: number };
+    formation?: ChoreographyFormation;
+    choreographySlot?: number;
+    bubbleLane?: number;
+    socialDistance?: ChoreographyDistance;
+    pairGesture?: ChoreographyGesture;
+    partnerId?: string;
   };
   position: [number, number, number];
   selected?: boolean;
@@ -110,8 +125,12 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 function animationIntent(actor: AssetHeroBody3DProps['actor']): AnimationIntent {
   if (actor.phase === 'moving') return 'walk';
   if (actor.sceneProp === 'pack' || actor.gesture === 'pack') return 'pack';
-  if (actor.sceneProp === 'weapon' || actor.gesture === 'ready') return 'ready';
+  if (actor.sceneProp === 'weapon' || actor.gesture === 'ready' || actor.formation === 'line') return 'ready';
   if (actor.phase === 'sleeping' || actor.actionId === 'sleep') return 'sleep';
+  if (actor.pairGesture === 'heal' || actor.pairGesture === 'offer') return actor.actionId === 'eat' ? 'eat' : 'help';
+  if (actor.pairGesture === 'appeal') return 'apologize';
+  if (actor.pairGesture === 'share') return 'eat';
+  if (actor.pairGesture === 'argue' || actor.pairGesture === 'recoil' || actor.pairGesture === 'mediate') return 'talk';
   switch (actor.actionId) {
     case 'train': return 'train';
     case 'work': return 'work';
@@ -239,10 +258,15 @@ function RiggedHeroBody3D({
   const posture = interactionPostureForActor(actor);
   const interactionLabel = interactionLabelForActor(actor);
   const modelPose = modelPoseFor(posture);
+  const bubbleLane = clamp(actor.bubbleLane ?? 0, -2, 2);
+  const bubbleX = bubbleLane * 0.4;
+  const bubbleY = (compact ? 3.03 : 3.42) + Math.abs(bubbleLane) * 0.1;
+  const labelX = bubbleLane * 0.08;
   const equipmentDrawn = actor.actionId === 'train'
     || actor.actionId === 'dungeon'
     || actor.sceneProp === 'weapon'
-    || actor.gesture === 'ready';
+    || actor.gesture === 'ready'
+    || actor.formation === 'line';
 
   useEffect(() => {
     if (!clipName) return;
@@ -271,6 +295,7 @@ function RiggedHeroBody3D({
   });
 
   const displayScale = appearance.scale * heightScale;
+  const worldPosition = actor.position;
   return (
     <group ref={root} position={position} onClick={(event) => { event.stopPropagation(); onSelect?.(); }}>
       <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]}>
@@ -291,7 +316,7 @@ function RiggedHeroBody3D({
         </group>
       </group>
 
-      <Html center position={[0, compact ? 2.52 : 2.9, 0]} zIndexRange={[30, 10]}>
+      <Html center position={[labelX, compact ? 2.52 : 2.9, 0]} zIndexRange={[30, 10]}>
         <button
           type="button"
           className={`world3d-hero-label ${selected ? 'world3d-hero-label-selected' : ''}`}
@@ -309,6 +334,16 @@ function RiggedHeroBody3D({
           data-interaction-label={interactionLabel}
           data-gesture={actor.gesture ?? 'none'}
           data-scene-prop={actor.sceneProp ?? 'none'}
+          data-choreography-formation={actor.formation ?? 'none'}
+          data-choreography-distance={actor.socialDistance ?? 'none'}
+          data-choreography-gesture={actor.pairGesture ?? 'none'}
+          data-choreography-slot={actor.choreographySlot ?? -1}
+          data-bubble-lane={actor.bubbleLane ?? 0}
+          data-partner-id={actor.partnerId ?? 'none'}
+          data-focus-point={actor.focusPoint ? `${actor.focusPoint.x.toFixed(2)},${actor.focusPoint.y.toFixed(2)}` : 'none'}
+          data-facing={actor.facing ?? 'down'}
+          data-world-x={worldPosition ? worldPosition.x.toFixed(2) : 'na'}
+          data-world-y={worldPosition ? worldPosition.y.toFixed(2) : 'na'}
           onClick={(event) => { event.stopPropagation(); onSelect?.(); }}
         >
           <strong>{hero.name}</strong>
@@ -316,12 +351,12 @@ function RiggedHeroBody3D({
         </button>
       </Html>
       {actor.bubble && actor.phase !== 'moving' && (
-        <Html center position={[0, compact ? 3.03 : 3.42, 0]} zIndexRange={[35, 12]}>
-          <span className="world3d-bubble">{actor.bubble}</span>
+        <Html center position={[bubbleX, bubbleY, 0]} zIndexRange={[35, 12]}>
+          <span className="world3d-bubble" data-bubble-lane={bubbleLane}>{actor.bubble}</span>
         </Html>
       )}
       {actor.reaction && (
-        <Html center position={[0.5, compact ? 2.25 : 2.58, 0]} zIndexRange={[34, 12]}>
+        <Html center position={[0.5 + bubbleX * 0.35, compact ? 2.25 : 2.58, 0]} zIndexRange={[34, 12]}>
           <span className="world3d-reaction">{actor.reaction}</span>
         </Html>
       )}
