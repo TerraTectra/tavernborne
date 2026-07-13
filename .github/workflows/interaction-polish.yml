@@ -1,0 +1,63 @@
+name: Interaction Polish v1 smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application and assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > interaction-preview.log 2>&1 &
+          echo $! > interaction-preview.pid
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat interaction-preview.log
+          exit 1
+
+      - name: Test Interaction Polish v1 in Chromium
+        run: node scripts/interaction-polish-smoke.mjs
+
+      - name: Upload interaction diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interaction-polish-v1-diagnostics
+          path: |
+            interaction-polish-diagnostics.json
+            interaction-polish-domestic.png
+            interaction-polish-physical.png
+            interaction-polish-council.png
+            interaction-polish-final.png
+            interaction-preview.log
+          if-no-files-found: ignore
