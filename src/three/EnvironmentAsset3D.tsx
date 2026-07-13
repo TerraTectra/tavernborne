@@ -54,13 +54,13 @@ function findAsset(manifest: EnvironmentManifest, candidates: string[], base: st
 
 function cloneEnvironmentScene(source: Object3D) {
   const clone = source.clone(true);
+  clone.updateMatrixWorld(true);
   clone.traverse((object) => {
+    object.matrixAutoUpdate = false;
     if (!(object instanceof Mesh)) return;
-    object.castShadow = true;
+    object.castShadow = false;
     object.receiveShadow = true;
-    object.frustumCulled = false;
-    if (Array.isArray(object.material)) object.material = object.material.map((entry) => entry.clone());
-    else object.material = object.material.clone();
+    object.frustumCulled = true;
   });
   return clone;
 }
@@ -135,8 +135,14 @@ export function EnvironmentAsset3D(props: EnvironmentAsset3DProps) {
   const [asset, setAsset] = useState<ResolvedEnvironmentAsset | null>();
   const candidates = useMemo(() => Array.isArray(props.assetId) ? props.assetId : [props.assetId], [props.assetId]);
   const candidateKey = candidates.join('|');
+  const shouldLoadCuratedAsset = Boolean(props.testId);
 
   useEffect(() => {
+    if (!shouldLoadCuratedAsset) {
+      setAsset(null);
+      return undefined;
+    }
+
     let cancelled = false;
     const base = import.meta.env.BASE_URL;
     requestManifest(base)
@@ -148,7 +154,7 @@ export function EnvironmentAsset3D(props: EnvironmentAsset3DProps) {
         if (!cancelled) setAsset(null);
       });
     return () => { cancelled = true; };
-  }, [candidateKey]);
+  }, [candidateKey, shouldLoadCuratedAsset]);
 
   const fallback = (
     <group position={props.position ?? [0, 0, 0]} rotation={props.rotation ?? [0, 0, 0]}>
