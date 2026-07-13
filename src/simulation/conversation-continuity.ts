@@ -86,6 +86,11 @@ const continuationCase = (value: string): string => {
   return `${addressed[1]}${addressed[2].toLocaleLowerCase('ru-RU')}${value.slice(addressed[0].length)}`;
 };
 
+const hesitantSentenceCase = (value: string): string => value.replace(
+  /^Я…\s+([а-яё])/u,
+  (_match, letter: string) => `Я… ${letter.toLocaleUpperCase('ru-RU')}`,
+);
+
 const compact = (value: string): string => value.replace(/\s+/gu, ' ').trim();
 
 const quoteAnchor = (value: string): string => {
@@ -170,7 +175,7 @@ const renderContinuousText = (
   if (!anchor) return base;
   if (continuity === 'answer') return `На слова «${anchor}» отвечу прямо: ${continuationCase(base)}`;
   if (continuity === 'challenge') return `Не могу согласиться со словами «${anchor}». ${base}`;
-  if (continuity === 'repair') return `Я понимаю, что за словами «${anchor}» стоит боль. ${base}`;
+  if (continuity === 'repair') return `Я понимаю, что за словами «${anchor}» стоит боль. ${hesitantSentenceCase(base)}`;
   return `Я услышал тебя: «${anchor}». ${base}`;
 };
 
