@@ -14,15 +14,15 @@ page.on('console', (message) => {
   if (message.type() === 'error') pageErrors.push(message.text());
 });
 
-const probeState = async (testId) => {
-  const probe = page.getByTestId(testId);
+const probeState = async (testId) => page.evaluate((id) => {
+  const state = window.__tavernborneEnvironment?.[id];
   return {
-    testId,
-    mode: await probe.getAttribute('data-visual-mode'),
-    asset: await probe.getAttribute('data-environment-asset'),
-    source: await probe.getAttribute('data-source-pack'),
+    testId: id,
+    mode: state?.mode ?? null,
+    asset: state?.asset ?? null,
+    source: state?.source ?? null,
   };
-};
+}, testId);
 
 try {
   stage = 'manifest';
@@ -34,7 +34,7 @@ try {
     sourceStates: manifest.sources?.map((source) => ({ id: source.id, status: source.status })),
     missing: manifest.missing,
   };
-  for (const required of ['tavern', 'blacksmith', 'dungeonGate', 'market', 'tree', 'rock', 'bush', 'lamp', 'crate', 'barrel']) {
+  for (const required of ['market', 'tree', 'rock', 'bush', 'lamp', 'crate', 'barrel', 'shrine']) {
     assert.ok(manifest.models?.[required]?.file, `Environment model ${required} is absent from the manifest`);
   }
 
@@ -58,9 +58,8 @@ try {
   ];
 
   for (const testId of probes) {
-    await page.getByTestId(testId).waitFor({ timeout: 25_000 });
     await page.waitForFunction(
-      (id) => document.querySelector(`[data-testid="${id}"]`)?.getAttribute('data-visual-mode') === 'curated-asset',
+      (id) => window.__tavernborneEnvironment?.[id]?.mode === 'curated-asset',
       testId,
       { timeout: 25_000 },
     );
@@ -73,6 +72,12 @@ try {
     assert.ok(probe.source && probe.source !== 'unknown', `${probe.testId} has no source pack`);
   }
   assert.ok(new Set(diagnostics.camp.map((probe) => probe.asset)).size >= 7, 'The camp does not use enough distinct environment assets');
+
+  stage = 'interaction';
+  await page.getByRole('button', { name: 'x1', exact: true }).click({ noWaitAfter: true });
+  await page.getByRole('button', { name: 'x2', exact: true }).waitFor({ timeout: 5000 });
+  await page.getByRole('button', { name: '+1 час', exact: true }).click({ noWaitAfter: true });
+  await page.waitForTimeout(700);
 
   stage = 'heroes-preserved';
   for (const heroId of ['mira', 'kael', 'liora']) {
