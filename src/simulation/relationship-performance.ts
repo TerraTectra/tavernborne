@@ -1,9 +1,7 @@
 import type { EmotionallyPerformedDirective } from './emotional-performance';
 import type { Hero, RelationshipId, WorldState } from './model';
 
-export type RelationshipPerformanceId =
-  | 'neutral' | 'bonded' | 'trusting' | 'respectful' | 'protective'
-  | 'deferential' | 'guarded' | 'intimidated' | 'resentful' | 'rivalrous';
+export type RelationshipPerformanceId = 'neutral' | 'bonded' | 'trusting' | 'respectful' | 'protective' | 'deferential' | 'guarded' | 'intimidated' | 'resentful' | 'rivalrous';
 export type RelationshipGaze = 'direct' | 'soft' | 'attentive' | 'watchful' | 'lowered' | 'sidelong' | 'avoidant' | 'hard' | 'challenging';
 export type RelationshipGesture = 'neutral' | 'mirror' | 'open' | 'nod' | 'shield' | 'yield' | 'closed' | 'flinch' | 'dismiss' | 'challenge';
 export type RelationshipSpeechStyle = 'neutral' | 'warm' | 'open' | 'formal' | 'protective' | 'subdued' | 'careful' | 'hesitant' | 'cold' | 'competitive';
@@ -28,18 +26,7 @@ export interface RelationshipPerformanceMetadata {
 
 export type RelationallyPerformedDirective = EmotionallyPerformedDirective & RelationshipPerformanceMetadata;
 type Profile = Omit<RelationshipPerformanceMetadata, 'relationshipIntensity' | 'relationshipPartnerId' | 'leadershipStance'>;
-type LeadershipWorld = WorldState & {
-  leadership?: {
-    familyLeaderId?: string;
-    people?: Record<string, {
-      role?: string;
-      bonds?: Record<string, {
-        authority?: number; obedience?: number; politicalLoyalty?: number;
-        confidence?: number; grievance?: number; groupBond?: number;
-      }>;
-    }>;
-  };
-};
+type LeadershipWorld = WorldState & { leadership?: { familyLeaderId?: string; people?: Record<string, { role?: string; bonds?: Record<string, { authority?: number; obedience?: number; politicalLoyalty?: number; confidence?: number; grievance?: number; groupBond?: number }> }> } };
 
 const clamp = (value: number, min = 0, max = 100): number => Math.max(min, Math.min(max, value));
 const profiles: Record<RelationshipPerformanceId, Profile> = {
@@ -55,37 +42,36 @@ const profiles: Record<RelationshipPerformanceId, Profile> = {
   rivalrous: { relationshipPerformance: 'rivalrous', relationshipApproachRate: 1.12, relationshipAnimationRate: 1.1, relationshipLean: -0.075, relationshipTurn: -0.08, relationshipDistanceOffset: -0.15, relationshipGaze: 'challenging', relationshipGesture: 'challenge', relationshipSpeechStyle: 'competitive', relationshipSymbol: '⇄', relationshipColor: '#f59e0b' },
 };
 const labels: Record<RelationshipPerformanceId, string> = {
-  neutral: '', bonded: 'держится по-семейному близко', trusting: 'говорит открыто', respectful: 'проявляет уважение',
-  protective: 'прикрывает собеседника', deferential: 'уступает авторитету', guarded: 'держит защитную дистанцию',
-  intimidated: 'избегает прямого давления', resentful: 'говорит холодно', rivalrous: 'бросает вызов',
+  neutral: '', bonded: 'держится по-семейному близко', trusting: 'говорит открыто', respectful: 'проявляет уважение', protective: 'прикрывает собеседника',
+  deferential: 'уступает авторитету', guarded: 'держит защитную дистанцию', intimidated: 'избегает прямого давления', resentful: 'говорит холодно', rivalrous: 'бросает вызов',
 };
-
 const valueOf = (hero: Hero, partnerId: string, key: RelationshipId): number => hero.relationships[partnerId]?.values[key] ?? 0;
+
 const leadershipContext = (world: WorldState, heroId: string, partnerId: string) => {
   const leadership = (world as LeadershipWorld).leadership;
   const person = leadership?.people?.[heroId];
   const bond = person?.bonds?.[partnerId];
   const partnerIsLeader = leadership?.familyLeaderId === partnerId;
   const heroIsLeader = leadership?.familyLeaderId === heroId;
-  const authority = bond?.authority ?? 0;
-  const obedience = bond?.obedience ?? 0;
-  const politicalLoyalty = bond?.politicalLoyalty ?? 0;
-  const confidence = bond?.confidence ?? 0;
-  const grievance = bond?.grievance ?? 0;
+  const authority = partnerIsLeader ? bond?.authority ?? 0 : 0;
+  const obedience = partnerIsLeader ? bond?.obedience ?? 0 : 0;
+  const politicalLoyalty = partnerIsLeader ? bond?.politicalLoyalty ?? 0 : 0;
+  const confidence = partnerIsLeader ? bond?.confidence ?? 0 : 0;
+  const grievance = partnerIsLeader ? bond?.grievance ?? 0 : 0;
   let stance: LeadershipStance = 'none';
   if (heroIsLeader) stance = 'leader';
   else if (partnerIsLeader && (person?.role === 'challenger' || grievance >= 58)) stance = 'challenger';
   else if (partnerIsLeader && politicalLoyalty >= 62 && confidence >= 52) stance = 'loyal';
   else if (partnerIsLeader && (authority >= 58 || obedience >= 58)) stance = 'deferential';
   else if (partnerIsLeader && (grievance >= 34 || confidence <= 34)) stance = 'skeptical';
-  return { authority, obedience, politicalLoyalty, confidence, grievance, stance };
+  return { partnerIsLeader, authority, obedience, politicalLoyalty, confidence, grievance, stance };
 };
 
 const partnerFor = (world: WorldState, heroId: string, directive?: EmotionallyPerformedDirective): string | undefined => {
   if (directive?.partnerId && directive.partnerId !== heroId) return directive.partnerId;
   if (directive?.targetId && directive.targetId !== heroId) return directive.targetId;
   const leaderId = (world as LeadershipWorld).leadership?.familyLeaderId;
-  if ((directive?.formation === 'line' || directive?.formation === 'table') && leaderId !== heroId) return leaderId;
+  if ((directive?.formation === 'line' || directive?.formation === 'table') && leaderId && leaderId !== heroId) return leaderId;
   return world.heroes[heroId]?.currentAction?.targetId;
 };
 
@@ -93,7 +79,6 @@ export const relationshipPerformanceForHero = (world: WorldState, heroId: string
   const hero = world.heroes[heroId];
   const partner = partnerId ? world.heroes[partnerId] : undefined;
   if (!hero || !partner || partner.id === hero.id) return { ...profiles.neutral, relationshipIntensity: 0, relationshipPartnerId: partnerId, leadershipStance: 'none' };
-
   const liking = valueOf(hero, partner.id, 'liking');
   const trust = valueOf(hero, partner.id, 'trust');
   const respect = valueOf(hero, partner.id, 'respect');
@@ -104,14 +89,13 @@ export const relationshipPerformanceForHero = (world: WorldState, heroId: string
   const attraction = valueOf(hero, partner.id, 'attraction');
   const rivalry = valueOf(hero, partner.id, 'rivalry');
   const lead = leadershipContext(world, hero.id, partner.id);
-
   const scores: Record<Exclude<RelationshipPerformanceId, 'neutral'>, number> = {
     bonded: Math.max(0, closeness) * 0.82 + Math.max(0, liking) * 0.38 + Math.max(0, trust) * 0.24 + Math.max(0, attraction) * 0.2,
     trusting: Math.max(0, trust) * 0.82 + Math.max(0, respect) * 0.28 + Math.max(0, closeness) * 0.18,
     respectful: Math.max(0, respect) * 0.86 + Math.max(0, trust) * 0.18 + lead.authority * 0.22,
     protective: Math.max(0, closeness) * 0.4 + Math.max(0, liking) * 0.32 + Math.max(0, trust) * 0.25 + hero.traits.empathy * 0.22 + partner.condition.injury * 0.42,
-    deferential: lead.authority * 0.52 + lead.obedience * 0.32 + lead.politicalLoyalty * 0.24 + hero.traits.loyalty * 0.14 - hero.traits.independence * 0.16,
-    guarded: Math.max(0, 35 - trust) * 1.08 + hero.traits.caution * 0.28 + Math.max(0, resentment) * 0.34 + Math.max(0, fear) * 0.18,
+    deferential: lead.partnerIsLeader ? lead.authority * 0.52 + lead.obedience * 0.32 + lead.politicalLoyalty * 0.24 + hero.traits.loyalty * 0.14 - hero.traits.independence * 0.16 : 0,
+    guarded: Math.max(0, -trust) * 1.05 + hero.traits.caution * 0.16 + Math.max(0, resentment) * 0.34 + Math.max(0, fear) * 0.18,
     intimidated: Math.max(0, fear) * 0.9 + lead.authority * 0.24 + Math.max(0, 100 - hero.psyche.security) * 0.24 + hero.emotions.fear * 0.22,
     resentful: Math.max(0, resentment) * 0.94 + hero.emotions.anger * 0.24 + lead.grievance * 0.4,
     rivalrous: Math.max(0, rivalry) * 0.9 + Math.max(0, envy) * 0.42 + hero.traits.ambition * 0.2 + hero.traits.pride * 0.14,
@@ -124,7 +108,6 @@ export const relationshipPerformanceForHero = (world: WorldState, heroId: string
   if (fear >= 65) scores.intimidated += 32;
   if (resentment >= 65) scores.resentful += 42;
   if (rivalry >= 65) scores.rivalrous += 22;
-
   const [winner, rawScore] = (Object.entries(scores) as [Exclude<RelationshipPerformanceId, 'neutral'>, number][]).sort((a, b) => b[1] - a[1])[0];
   const id: RelationshipPerformanceId = rawScore >= 42 ? winner : 'neutral';
   return { ...profiles[id], relationshipIntensity: id === 'neutral' ? clamp(rawScore * 0.42) : clamp(rawScore), relationshipPartnerId: partner.id, leadershipStance: lead.stance };
@@ -147,12 +130,8 @@ export const performRelationship = (world: WorldState, heroId: string, directive
   const performance = relationshipPerformanceForHero(world, heroId, partnerFor(world, heroId, directive));
   const strength = clamp(performance.relationshipIntensity / 100, 0, 1);
   const dominates = performance.relationshipPerformance !== 'neutral' && performance.relationshipIntensity >= directive.emotionalIntensity * 0.82;
-  const leadershipReaction = performance.leadershipStance === 'challenger' ? 'оспаривает право вести'
-    : performance.leadershipStance === 'loyal' ? 'поддерживает лидера'
-      : performance.leadershipStance === 'deferential' ? 'признаёт старшинство'
-        : performance.leadershipStance === 'skeptical' ? 'сомневается в авторитете' : undefined;
+  const leadershipReaction = performance.leadershipStance === 'challenger' ? 'оспаривает право вести' : performance.leadershipStance === 'loyal' ? 'поддерживает лидера' : performance.leadershipStance === 'deferential' ? 'признаёт старшинство' : performance.leadershipStance === 'skeptical' ? 'сомневается в авторитете' : undefined;
   const reaction = directive.reaction ?? leadershipReaction ?? labels[performance.relationshipPerformance];
-
   return {
     ...directive,
     ...performance,
