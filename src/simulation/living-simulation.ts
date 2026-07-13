@@ -1,3 +1,4 @@
+import { prepareCommitmentReasoning } from './commitment-reasoning';
 import { advanceConversationConsequences } from './conversation-consequences';
 import { continueConversation } from './conversation-continuity';
 import { performDialogue } from './dialogue-performance';
@@ -39,6 +40,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
     );
     prepareLifeScenes(prepared, prepared.tick + 1);
     advanceDueConversationConsequences(prepared);
+    prepareCommitmentReasoning(prepared);
     world = advanceExpeditionVisualSimulation(prepared, 1);
     advancePhysicalBodies(world, 1, previousActions);
     advanceLifeScenes(world);
