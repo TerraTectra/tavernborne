@@ -13,8 +13,15 @@ import {
   Vector3,
 } from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { Hero } from '../simulation';
+import type { Hero, VisualGesture, VisualProp } from '../simulation';
 import type { RuntimeActor } from '../rts/realtime';
+import {
+  HeroInteraction3D,
+  interactionKindForActor,
+  interactionLabelForActor,
+  interactionPostureForActor,
+  type InteractionPosture,
+} from './HeroInteraction3D';
 import { applyModularHeroAppearance } from './ModularHeroAppearance3D';
 import { HeroBody3D as ProceduralHeroBody3D } from './ProceduralHeroBody3D';
 
@@ -28,6 +35,8 @@ export interface AssetHeroBody3DProps {
     roleLabel?: string;
     reaction?: string;
     actionId?: RuntimeActor['actionId'];
+    gesture?: VisualGesture;
+    sceneProp?: VisualProp;
   };
   position: [number, number, number];
   selected?: boolean;
@@ -47,7 +56,22 @@ type CharacterManifest = {
   };
 };
 
-type AnimationIntent = 'idle' | 'walk' | 'sleep' | 'train' | 'work' | 'eat' | 'talk' | 'dungeon';
+type AnimationIntent =
+  | 'idle'
+  | 'walk'
+  | 'sleep'
+  | 'train'
+  | 'work'
+  | 'help'
+  | 'eat'
+  | 'read'
+  | 'talk'
+  | 'apologize'
+  | 'solitude'
+  | 'recover'
+  | 'dungeon'
+  | 'pack'
+  | 'ready';
 
 const palette: Record<string, { cloth: string; trim: string; hair: string; skin: string }> = {
   mira: { cloth: '#2f846a', trim: '#b8d8a7', hair: '#aeb5bc', skin: '#d6a47f' },
@@ -68,23 +92,39 @@ const clipHints: Record<AnimationIntent, string[]> = {
   sleep: ['sitting idle loop', 'driving loop', 'idle loop'],
   train: ['punch jab', 'punch cross', 'sword attack', 'sword attack rm', 'spell simple shoot', 'push loop'],
   work: ['fixing kneeling', 'pickup table', 'interact', 'push loop'],
+  help: ['fixing kneeling', 'interact', 'pickup table', 'push loop'],
   eat: ['sitting idle loop', 'sitting talking loop', 'interact'],
+  read: ['sitting idle loop', 'interact', 'idle loop'],
   talk: ['idle talking loop', 'sitting talking loop', 'interact'],
+  apologize: ['idle talking loop', 'interact', 'sitting talking loop'],
+  solitude: ['idle torch loop', 'idle loop'],
+  recover: ['fixing kneeling', 'sitting idle loop', 'idle loop'],
   dungeon: ['sword idle', 'idle torch loop', 'pistol idle loop', 'idle loop'],
+  pack: ['pickup table', 'interact', 'fixing kneeling'],
+  ready: ['sword idle', 'pistol idle loop', 'idle torch loop'],
 };
 
 const normalize = (value: string) => value.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function animationIntent(actor: AssetHeroBody3DProps['actor']): AnimationIntent {
-  if (actor.phase === 'sleeping') return 'sleep';
   if (actor.phase === 'moving') return 'walk';
-  if (actor.actionId === 'train') return 'train';
-  if (actor.actionId === 'work' || actor.actionId === 'help') return 'work';
-  if (actor.actionId === 'eat') return 'eat';
-  if (actor.actionId === 'talk' || actor.phase === 'interacting') return 'talk';
-  if (actor.actionId === 'dungeon') return 'dungeon';
-  return 'idle';
+  if (actor.sceneProp === 'pack' || actor.gesture === 'pack') return 'pack';
+  if (actor.sceneProp === 'weapon' || actor.gesture === 'ready') return 'ready';
+  if (actor.phase === 'sleeping' || actor.actionId === 'sleep') return 'sleep';
+  switch (actor.actionId) {
+    case 'train': return 'train';
+    case 'work': return 'work';
+    case 'help': return 'help';
+    case 'eat': return 'eat';
+    case 'read': return 'read';
+    case 'talk': return 'talk';
+    case 'apologize': return 'apologize';
+    case 'seekSolitude': return 'solitude';
+    case 'recover': return 'recover';
+    case 'dungeon': return 'dungeon';
+    default: return actor.phase === 'interacting' ? 'talk' : 'idle';
+  }
 }
 
 function chooseClip(names: string[], intent: AnimationIntent): string | undefined {
@@ -99,6 +139,15 @@ function chooseClip(names: string[], intent: AnimationIntent): string | undefine
   }
   if (intent !== 'idle') return chooseClip(names, 'idle');
   return names[0];
+}
+
+function modelPoseFor(posture: InteractionPosture): { position: [number, number, number]; rotation: [number, number, number] } {
+  if (posture === 'seated') return { position: [0, -0.13, -0.04], rotation: [0.04, 0, 0] };
+  if (posture === 'kneeling') return { position: [0, -0.1, 0.02], rotation: [0.1, 0, 0] };
+  if (posture === 'resting') return { position: [0, -0.16, -0.08], rotation: [0.08, 0, 0.03] };
+  if (posture === 'leaning') return { position: [0, -0.04, 0.03], rotation: [0.12, 0, 0] };
+  if (posture === 'ready') return { position: [0, 0, -0.02], rotation: [-0.03, 0, 0] };
+  return { position: [0, 0, 0], rotation: [0, 0, 0] };
 }
 
 function tintScene(source: Object3D, heroId: string): Object3D {
@@ -186,7 +235,14 @@ function RiggedHeroBody3D({
   const depthScale = clamp(0.92 + (body.massKg - 64) / 180, 0.84, 1.18);
   const injury = clamp(hero.condition.injury / 100, 0, 1);
   const fatigue = clamp(hero.body.tissues.muscleFatigue / 100, 0, 1);
-  const equipmentDrawn = actor.actionId === 'train' || actor.actionId === 'dungeon';
+  const interactionKind = interactionKindForActor(actor);
+  const posture = interactionPostureForActor(actor);
+  const interactionLabel = interactionLabelForActor(actor);
+  const modelPose = modelPoseFor(posture);
+  const equipmentDrawn = actor.actionId === 'train'
+    || actor.actionId === 'dungeon'
+    || actor.sceneProp === 'weapon'
+    || actor.gesture === 'ready';
 
   useEffect(() => {
     if (!clipName) return;
@@ -194,7 +250,8 @@ function RiggedHeroBody3D({
     if (!next) return;
     currentAction.current?.fadeOut(0.22);
     next.reset().setLoop(LoopRepeat, Infinity).fadeIn(0.24).play();
-    next.timeScale = clamp((intent === 'walk' ? 1.05 : 0.92) * (1 - fatigue * 0.34) * (1 - injury * 0.18), 0.42, 1.25);
+    const effort = intent === 'walk' ? 1.05 : intent === 'train' ? 1.08 : intent === 'sleep' ? 0.58 : 0.92;
+    next.timeScale = clamp(effort * (1 - fatigue * 0.34) * (1 - injury * 0.18), 0.38, 1.25);
     currentAction.current = next;
     return () => {
       next.fadeOut(0.16);
@@ -227,8 +284,11 @@ function RiggedHeroBody3D({
         </mesh>
       )}
 
-      <group ref={modelRoot} scale={[displayScale * widthScale, displayScale, displayScale * depthScale]} position={[0, appearance.floorOffset * displayScale, 0]}>
-        <primitive object={appearance.model} />
+      <HeroInteraction3D heroId={hero.id} actor={actor} compact={compact} />
+      <group position={modelPose.position} rotation={modelPose.rotation}>
+        <group ref={modelRoot} scale={[displayScale * widthScale, displayScale, displayScale * depthScale]} position={[0, appearance.floorOffset * displayScale, 0]}>
+          <primitive object={appearance.model} />
+        </group>
       </group>
 
       <Html center position={[0, compact ? 2.52 : 2.9, 0]} zIndexRange={[30, 10]}>
@@ -244,6 +304,11 @@ function RiggedHeroBody3D({
           data-appearance-profile={appearance.profileId}
           data-appearance-modules={appearance.moduleCount}
           data-equipment-state={equipmentDrawn ? 'drawn' : 'stowed'}
+          data-interaction-kind={interactionKind}
+          data-interaction-posture={posture}
+          data-interaction-label={interactionLabel}
+          data-gesture={actor.gesture ?? 'none'}
+          data-scene-prop={actor.sceneProp ?? 'none'}
           onClick={(event) => { event.stopPropagation(); onSelect?.(); }}
         >
           <strong>{hero.name}</strong>
