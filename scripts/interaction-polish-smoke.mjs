@@ -224,7 +224,7 @@ try {
   diagnostics.apology = apology;
   assert.equal(apology.intent, 'apologize');
   assert.equal(apology.animation, 'Idle_Talking_Loop');
-  assert.equal(apology.posture, 'seated');
+  assert.equal(apology.posture, 'standing');
 
   stage = 'council-equipping';
   await forceCouncilPhase('equipping');
@@ -257,6 +257,7 @@ try {
   stage = 'errors';
   diagnostics.assetWarnings = assetWarnings;
   assert.equal(pageErrors.length, 0, `Page errors: ${pageErrors.join(' | ')}`);
+  assert.equal(assetWarnings.length, 0, `Asset warnings: ${assetWarnings.join(' | ')}`);
   writeFileSync('interaction-polish-diagnostics.json', JSON.stringify({ ok: true, stage, diagnostics, pageErrors, assetWarnings }, null, 2));
   console.log('Interaction Polish v1 browser smoke test passed.');
 } catch (error) {
