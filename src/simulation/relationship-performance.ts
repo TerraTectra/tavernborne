@@ -120,6 +120,12 @@ const profiles: Record<RelationshipPerformanceId, RelationshipProfile> = {
   },
 };
 
+const relationshipLabels: Record<RelationshipPerformanceId, string> = {
+  neutral: '', bonded: 'держится по-семейному близко', trusting: 'говорит открыто', respectful: 'проявляет уважение',
+  protective: 'прикрывает собеседника', deferential: 'уступает авторитету', guarded: 'держит защитную дистанцию',
+  intimidated: 'избегает прямого давления', resentful: 'говорит холодно', rivalrous: 'бросает вызов',
+};
+
 const valueOf = (hero: Hero, partnerId: string, key: RelationshipId): number => hero.relationships[partnerId]?.values[key] ?? 0;
 
 const leadershipContext = (world: WorldState, heroId: string, partnerId: string): {
@@ -238,5 +244,29 @@ export const performRelationship = (
   if (!directive) return undefined;
   const partnerId = partnerFor(world, heroId, directive);
   const performance = relationshipPerformanceForHero(world, heroId, partnerId);
-  return { ...directive, ...performance, position: relationallyOffsetPosition(directive, performance) };
+  const strength = clamp(performance.relationshipIntensity / 100, 0, 1);
+  const relationshipDominatesExpression = performance.relationshipPerformance !== 'neutral'
+    && performance.relationshipIntensity >= directive.emotionalIntensity * 0.82;
+  const leadershipReaction = performance.leadershipStance === 'challenger'
+    ? 'оспаривает право вести'
+    : performance.leadershipStance === 'loyal'
+      ? 'поддерживает лидера'
+      : performance.leadershipStance === 'deferential'
+        ? 'признаёт старшинство'
+        : performance.leadershipStance === 'skeptical'
+          ? 'сомневается в авторитете'
+          : undefined;
+
+  return {
+    ...directive,
+    ...performance,
+    position: relationallyOffsetPosition(directive, performance),
+    movementRate: clamp(directive.movementRate * performance.relationshipApproachRate, 0.48, 1.42),
+    animationRate: clamp(directive.animationRate * performance.relationshipAnimationRate, 0.36, 1.48),
+    bodyLean: directive.bodyLean + performance.relationshipLean * strength,
+    bodyTension: clamp(directive.bodyTension + strength * (performance.relationshipGesture === 'mirror' ? -0.08 : 0.16), 0, 1),
+    expressionSymbol: relationshipDominatesExpression ? performance.relationshipSymbol : directive.expressionSymbol,
+    expressionColor: relationshipDominatesExpression ? performance.relationshipColor : directive.expressionColor,
+    reaction: directive.reaction ?? leadershipReaction ?? relationshipLabels[performance.relationshipPerformance] || undefined,
+  };
 };
