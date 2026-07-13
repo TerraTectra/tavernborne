@@ -68,12 +68,18 @@ try {
 
   await page.getByTestId('dungeon-visual-overlay').waitFor({ timeout: 9000 });
   const dungeonLabels = page.locator('[data-testid^="dungeon-hero-3d-"]');
+  await dungeonLabels.first().waitFor({ timeout: 20_000 });
   const partySize = await dungeonLabels.count();
   assert.ok(partySize >= 2, `Dungeon party is unexpectedly small: ${partySize}`);
 
   const dungeonState = [];
   for (let index = 0; index < partySize; index += 1) {
     const label = dungeonLabels.nth(index);
+    await page.waitForFunction(
+      (testId) => document.querySelector(`[data-testid="${testId}"]`)?.getAttribute('data-visual-mode') === 'rigged-asset',
+      await label.getAttribute('data-testid'),
+      { timeout: 20_000 },
+    );
     dungeonState.push({
       id: await label.getAttribute('data-testid'),
       profile: await label.getAttribute('data-appearance-profile'),
