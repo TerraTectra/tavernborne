@@ -91,6 +91,7 @@ export const refineChoreographyDirective = (
     return {
       ...directive,
       actionId: patient ? 'sleep' : directive.actionId,
+      gesture: 'listen',
       position: patient ? { x: 85, y: 20.5 } : { x: 78.5, y: 21.5 },
       focusPoint: patient ? { x: 78.5, y: 21.5 } : { x: 85, y: 20.5 },
       bubbleLane: patient ? 1 : -1,
