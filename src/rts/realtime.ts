@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  emotionalPerformanceForHero,
   visualDirectiveForHero,
   type ActionId,
   type ChoreographyDistance,
   type ChoreographyFormation,
   type ChoreographyGesture,
+  type EmotionalPerformanceId,
+  type EmotionalPerformanceMetadata,
   type Hero,
   type VisualGesture,
   type VisualProp,
@@ -39,6 +42,14 @@ export interface RuntimeActor {
   socialDistance?: ChoreographyDistance;
   pairGesture?: ChoreographyGesture;
   partnerId?: string;
+  emotionalPerformance?: EmotionalPerformanceId;
+  emotionalIntensity?: number;
+  movementRate?: number;
+  animationRate?: number;
+  bodyLean?: number;
+  bodyTension?: number;
+  expressionSymbol?: string;
+  expressionColor?: string;
 }
 
 const initialPositions: Record<string, Point> = {
@@ -82,14 +93,9 @@ const routeFor = (from: Point, destination: Point): Point[] => {
   const crossesLowerBoundary = fromLower !== destinationLower;
   const crossesSides = (from.x < 35 && destination.x > 65) || (from.x > 65 && destination.x < 35);
 
-  if (crossesSides || (!fromLower && !destinationLower && Math.abs(from.x - destination.x) > 30)) {
-    route.push({ x: 50, y: 37 });
-  }
-  if (crossesLowerBoundary) {
-    route.push({ x: 50, y: 72 });
-  } else if (fromLower && destinationLower && Math.abs(from.x - destination.x) > 24) {
-    route.push({ x: 50, y: 78 });
-  }
+  if (crossesSides || (!fromLower && !destinationLower && Math.abs(from.x - destination.x) > 30)) route.push({ x: 50, y: 37 });
+  if (crossesLowerBoundary) route.push({ x: 50, y: 72 });
+  else if (fromLower && destinationLower && Math.abs(from.x - destination.x) > 24) route.push({ x: 50, y: 78 });
   route.push(destination);
 
   return route.filter((point, index) => index === 0 || distance(point, route[index - 1]) > 1);
@@ -109,18 +115,11 @@ const actionPhase = (actionId: ActionId): ActorPhase => {
   return 'acting';
 };
 
-const reciprocalSocialDestination = (
-  hero: Hero,
-  actor: RuntimeActor,
-  target: RuntimeActor,
-): Point | undefined => {
+const reciprocalSocialDestination = (hero: Hero, actor: RuntimeActor, target: RuntimeActor): Point | undefined => {
   if (!target.actionId || !socialActions.has(target.actionId) || target.targetId !== hero.id) return undefined;
   const ids = [hero.id, target.heroId].sort();
   const sign = ids[0] === hero.id ? -1 : 1;
-  const anchor = {
-    x: (actor.position.x + target.position.x) / 2,
-    y: (actor.position.y + target.position.y) / 2,
-  };
+  const anchor = { x: (actor.position.x + target.position.x) / 2, y: (actor.position.y + target.position.y) / 2 };
   const dx = target.position.x - actor.position.x;
   const dy = target.position.y - actor.position.y;
   const horizontal = Math.abs(dx) >= Math.abs(dy);
@@ -138,17 +137,10 @@ const oneSidedSocialDestination = (hero: Hero, actor: RuntimeActor, target: Runt
   const nx = length > 0.01 ? dx / length : fallbackSign;
   const ny = length > 0.01 ? dy / length : 0;
   const side = hero.id.localeCompare(target.heroId) <= 0 ? -0.55 : 0.55;
-  return {
-    x: target.position.x + nx * 4.1 - ny * side,
-    y: target.position.y + ny * 4.1 + nx * side,
-  };
+  return { x: target.position.x + nx * 4.1 - ny * side, y: target.position.y + ny * 4.1 + nx * side };
 };
 
-const actionDestination = (
-  hero: Hero,
-  actorIndex: number,
-  actors: Record<string, RuntimeActor>,
-): Point => {
+const actionDestination = (hero: Hero, actorIndex: number, actors: Record<string, RuntimeActor>): Point => {
   const fallback = initialPositions[hero.id] ?? { x: 48 + actorIndex * 3, y: 39 };
   const action = hero.currentAction;
   if (!action) return fallback;
@@ -156,9 +148,7 @@ const actionDestination = (
   if (socialActions.has(action.actionId) && action.targetId) {
     const actor = actors[hero.id];
     const target = actors[action.targetId];
-    if (actor && target && target.phase !== 'away') {
-      return reciprocalSocialDestination(hero, actor, target) ?? oneSidedSocialDestination(hero, actor, target);
-    }
+    if (actor && target && target.phase !== 'away') return reciprocalSocialDestination(hero, actor, target) ?? oneSidedSocialDestination(hero, actor, target);
   }
 
   const destinations = fixedDestinations[action.actionId as keyof typeof fixedDestinations];
@@ -177,6 +167,17 @@ const createRuntime = (world: WorldState): Record<string, RuntimeActor> =>
     };
     return result;
   }, {});
+
+const applyEmotionalPerformance = (actor: RuntimeActor, performance: EmotionalPerformanceMetadata): void => {
+  actor.emotionalPerformance = performance.emotionalPerformance;
+  actor.emotionalIntensity = performance.emotionalIntensity;
+  actor.movementRate = performance.movementRate;
+  actor.animationRate = performance.animationRate;
+  actor.bodyLean = performance.bodyLean;
+  actor.bodyTension = performance.bodyTension;
+  actor.expressionSymbol = performance.expressionSymbol;
+  actor.expressionColor = performance.expressionColor;
+};
 
 const clearScenePresentation = (actor: RuntimeActor): void => {
   actor.sceneId = undefined;
@@ -209,13 +210,10 @@ const applyDirectivePresentation = (actor: RuntimeActor, directive: RuntimeDirec
   actor.socialDistance = directive.socialDistance;
   actor.pairGesture = directive.pairGesture;
   actor.partnerId = directive.partnerId;
+  applyEmotionalPerformance(actor, directive);
 };
 
-const faceDirectiveFocus = (
-  actor: RuntimeActor,
-  directive: RuntimeDirective,
-  actors: Record<string, RuntimeActor>,
-): void => {
+const faceDirectiveFocus = (actor: RuntimeActor, directive: RuntimeDirective, actors: Record<string, RuntimeActor>): void => {
   if (directive.focusPoint && distance(actor.position, directive.focusPoint) > 0.05) {
     actor.facing = facingFor(actor.position, directive.focusPoint);
     return;
@@ -223,21 +221,13 @@ const faceDirectiveFocus = (
   const targetId = directive.partnerId ?? directive.targetId;
   if (!targetId) return;
   const target = actors[targetId];
-  if (target && target.phase !== 'away' && distance(actor.position, target.position) > 0.05) {
-    actor.facing = facingFor(actor.position, target.position);
-  }
+  if (target && target.phase !== 'away' && distance(actor.position, target.position) > 0.05) actor.facing = facingFor(actor.position, target.position);
 };
 
 const directiveKey = (directive: RuntimeDirective, heroId: string): string => [
-  'scene',
-  directive.sceneId,
-  heroId,
-  directive.position.x.toFixed(2),
-  directive.position.y.toFixed(2),
-  directive.formation ?? 'none',
-  directive.choreographySlot ?? -1,
-  directive.gesture,
-  directive.pairGesture ?? 'none',
+  'scene', directive.sceneId, heroId, directive.position.x.toFixed(2), directive.position.y.toFixed(2),
+  directive.formation ?? 'none', directive.choreographySlot ?? -1, directive.gesture,
+  directive.pairGesture ?? 'none', directive.emotionalPerformance,
 ].join(':');
 
 const genericPairGesture = (actionId: ActionId): ChoreographyGesture => {
@@ -277,6 +267,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
         heroes.forEach((hero, index) => {
           const actor = next[hero.id] ?? createRuntime(currentWorld)[hero.id];
           next[hero.id] = actor;
+          applyEmotionalPerformance(actor, emotionalPerformanceForHero(currentWorld, hero.id));
           const directive = visualDirectiveForHero(currentWorld, hero.id);
 
           if (directive) {
@@ -307,7 +298,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
 
             actor.phase = 'moving';
             actor.facing = facingFor(actor.position, waypoint);
-            const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current);
+            const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current) * (actor.movementRate ?? 1);
             const step = Math.min(remaining, unitsPerSecond * dt);
             actor.position.x += ((waypoint.x - actor.position.x) / remaining) * step;
             actor.position.y += ((waypoint.y - actor.position.y) / remaining) * step;
@@ -373,7 +364,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
 
           actor.phase = 'moving';
           actor.facing = facingFor(actor.position, waypoint);
-          const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current);
+          const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current) * (actor.movementRate ?? 1);
           const step = Math.min(remaining, unitsPerSecond * dt);
           actor.position.x += ((waypoint.x - actor.position.x) / remaining) * step;
           actor.position.y += ((waypoint.y - actor.position.y) / remaining) * step;
