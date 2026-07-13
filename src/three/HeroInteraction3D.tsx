@@ -1,5 +1,12 @@
 import { Html, Sparkles } from '@react-three/drei';
-import type { ActionId, VisualGesture, VisualProp } from '../simulation';
+import type {
+  ActionId,
+  ChoreographyDistance,
+  ChoreographyFormation,
+  ChoreographyGesture,
+  VisualGesture,
+  VisualProp,
+} from '../simulation';
 import type { ActorPhase } from '../rts/realtime';
 
 export type InteractionKind =
@@ -22,6 +29,13 @@ export interface InteractionActor {
   actionId?: ActionId;
   gesture?: VisualGesture;
   sceneProp?: VisualProp;
+  formation?: ChoreographyFormation;
+  choreographySlot?: number;
+  bubbleLane?: number;
+  socialDistance?: ChoreographyDistance;
+  pairGesture?: ChoreographyGesture;
+  partnerId?: string;
+  focusPoint?: { x: number; y: number };
 }
 
 const actionLabels: Record<InteractionKind, string> = {
@@ -58,8 +72,15 @@ export const interactionKindForActor = (actor: InteractionActor): InteractionKin
 
 export const interactionPostureForActor = (actor: InteractionActor): InteractionPosture => {
   const kind = interactionKindForActor(actor);
-  if (kind === 'meal' || kind === 'reading' || kind === 'conversation') return 'seated';
-  if (kind === 'care' || kind === 'recovery') return 'kneeling';
+  if (actor.formation === 'conflict' || actor.formation === 'pair') return 'standing';
+  if (actor.formation === 'line') return 'ready';
+  if (actor.formation === 'workbench') return 'leaning';
+  if (actor.formation === 'care' && actor.pairGesture === 'receive') return 'resting';
+  if (actor.formation === 'care' && actor.pairGesture === 'heal') return 'kneeling';
+  if (kind === 'meal' || kind === 'reading') return 'seated';
+  if (kind === 'conversation') return actor.formation === 'table' ? 'seated' : 'standing';
+  if (kind === 'care') return 'kneeling';
+  if (kind === 'recovery') return actor.pairGesture === 'receive' ? 'resting' : 'kneeling';
   if (kind === 'sleep') return 'resting';
   if (kind === 'work') return 'leaning';
   if (kind === 'training' || kind === 'dungeon') return 'ready';
@@ -181,10 +202,56 @@ function SceneProp({ prop }: { prop?: VisualProp }) {
   return null;
 }
 
+function GestureAccent({ gesture }: { gesture?: ChoreographyGesture }) {
+  if (!gesture || gesture === 'none' || gesture === 'observe') return null;
+  if (gesture === 'heal') {
+    return (
+      <group position={[0, 1.02, 0.48]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.24, 0.026, 8, 28]} /><meshStandardMaterial color="#8ed7a6" emissive="#3d8f61" emissiveIntensity={0.9} /></mesh>
+        <Sparkles count={12} scale={[0.65, 0.65, 0.65]} size={1.5} speed={0.3} color="#b9f6ca" />
+      </group>
+    );
+  }
+  if (gesture === 'argue') {
+    return (
+      <group position={[0, 1.45, 0.5]}>
+        <mesh rotation={[0, 0, 0.65]}><boxGeometry args={[0.08, 0.5, 0.06]} /><meshStandardMaterial color="#ef7a6b" emissive="#9d2f27" emissiveIntensity={0.8} /></mesh>
+        <mesh position={[0.18, 0.08, 0]} rotation={[0, 0, -0.65]}><boxGeometry args={[0.07, 0.38, 0.05]} /><meshStandardMaterial color="#f3a074" emissive="#a8412e" emissiveIntensity={0.65} /></mesh>
+      </group>
+    );
+  }
+  if (gesture === 'recoil') {
+    return <mesh position={[0, 1.16, 0.38]} rotation={[0, 0, Math.PI / 2]}><torusGeometry args={[0.34, 0.035, 8, 28, Math.PI]} /><meshStandardMaterial color="#91b8d4" emissive="#3f6f91" emissiveIntensity={0.6} /></mesh>;
+  }
+  if (gesture === 'mediate') {
+    return (
+      <group position={[0, 1.55, 0.36]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.28, 0.028, 8, 30]} /><meshStandardMaterial color="#c5a6ef" emissive="#7454a5" emissiveIntensity={0.75} /></mesh>
+        <Sparkles count={8} scale={[0.75, 0.5, 0.75]} size={1.3} speed={0.22} color="#e3d2ff" />
+      </group>
+    );
+  }
+  const color = gesture === 'appeal'
+    ? '#e7c98b'
+    : gesture === 'receive'
+      ? '#9fc4df'
+      : gesture === 'share'
+        ? '#e6a95f'
+        : gesture === 'present'
+          ? '#d9b66f'
+          : '#9fd3c7';
+  return (
+    <group position={[0, 1.02, 0.52]}>
+      <mesh><sphereGeometry args={[0.11, 14, 12]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.55} transparent opacity={0.82} /></mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.24, 0.018, 8, 24]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} /></mesh>
+    </group>
+  );
+}
+
 export function HeroInteraction3D({ heroId, actor, compact = false }: { heroId: string; actor: InteractionActor; compact?: boolean }) {
   const kind = interactionKindForActor(actor);
   const posture = interactionPostureForActor(actor);
-  if (kind === 'none' && !actor.sceneProp) return null;
+  if (kind === 'none' && !actor.sceneProp && !actor.pairGesture) return null;
 
   return (
     <group scale={compact ? 0.82 : 1}>
@@ -199,6 +266,7 @@ export function HeroInteraction3D({ heroId, actor, compact = false }: { heroId: 
       {kind === 'dungeon' && <DungeonProps />}
       {kind === 'recovery' && <RecoveryProps />}
       <SceneProp prop={actor.sceneProp} />
+      <GestureAccent gesture={actor.pairGesture} />
       <Html position={[0, 0, 0]} zIndexRange={[0, 0]}>
         <span
           data-testid={`interaction-${heroId}`}
@@ -206,6 +274,13 @@ export function HeroInteraction3D({ heroId, actor, compact = false }: { heroId: 
           data-interaction-posture={posture}
           data-interaction-contact={kind === 'none' ? 'none' : 'active'}
           data-interaction-prop={actor.sceneProp ?? 'none'}
+          data-choreography-formation={actor.formation ?? 'none'}
+          data-choreography-distance={actor.socialDistance ?? 'none'}
+          data-choreography-gesture={actor.pairGesture ?? 'none'}
+          data-choreography-slot={actor.choreographySlot ?? -1}
+          data-bubble-lane={actor.bubbleLane ?? 0}
+          data-partner-id={actor.partnerId ?? 'none'}
+          data-focus-point={actor.focusPoint ? `${actor.focusPoint.x.toFixed(2)},${actor.focusPoint.y.toFixed(2)}` : 'none'}
           style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
         />
       </Html>

@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import {
   visualDirectiveForHero,
   type ActionId,
+  type ChoreographyDistance,
+  type ChoreographyFormation,
+  type ChoreographyGesture,
   type Hero,
   type VisualGesture,
   type VisualProp,
@@ -11,6 +14,8 @@ import {
 export type Point = { x: number; y: number };
 export type Facing = 'left' | 'right' | 'up' | 'down';
 export type ActorPhase = 'idle' | 'moving' | 'acting' | 'interacting' | 'sleeping' | 'away';
+
+type RuntimeDirective = NonNullable<ReturnType<typeof visualDirectiveForHero>>;
 
 export interface RuntimeActor {
   heroId: string;
@@ -27,6 +32,13 @@ export interface RuntimeActor {
   roleLabel?: string;
   reaction?: string;
   sceneProp?: VisualProp;
+  focusPoint?: Point;
+  formation?: ChoreographyFormation;
+  choreographySlot?: number;
+  bubbleLane?: number;
+  socialDistance?: ChoreographyDistance;
+  pairGesture?: ChoreographyGesture;
+  partnerId?: string;
 }
 
 const initialPositions: Record<string, Point> = {
@@ -97,6 +109,41 @@ const actionPhase = (actionId: ActionId): ActorPhase => {
   return 'acting';
 };
 
+const reciprocalSocialDestination = (
+  hero: Hero,
+  actor: RuntimeActor,
+  target: RuntimeActor,
+): Point | undefined => {
+  if (!target.actionId || !socialActions.has(target.actionId) || target.targetId !== hero.id) return undefined;
+  const ids = [hero.id, target.heroId].sort();
+  const sign = ids[0] === hero.id ? -1 : 1;
+  const anchor = {
+    x: (actor.position.x + target.position.x) / 2,
+    y: (actor.position.y + target.position.y) / 2,
+  };
+  const dx = target.position.x - actor.position.x;
+  const dy = target.position.y - actor.position.y;
+  const horizontal = Math.abs(dx) >= Math.abs(dy);
+  const halfSpacing = 3.7;
+  return horizontal
+    ? { x: anchor.x + sign * halfSpacing, y: anchor.y }
+    : { x: anchor.x, y: anchor.y + sign * halfSpacing };
+};
+
+const oneSidedSocialDestination = (hero: Hero, actor: RuntimeActor, target: RuntimeActor): Point => {
+  const dx = actor.position.x - target.position.x;
+  const dy = actor.position.y - target.position.y;
+  const length = Math.hypot(dx, dy);
+  const fallbackSign = hero.id.localeCompare(target.heroId) <= 0 ? -1 : 1;
+  const nx = length > 0.01 ? dx / length : fallbackSign;
+  const ny = length > 0.01 ? dy / length : 0;
+  const side = hero.id.localeCompare(target.heroId) <= 0 ? -0.55 : 0.55;
+  return {
+    x: target.position.x + nx * 4.1 - ny * side,
+    y: target.position.y + ny * 4.1 + nx * side,
+  };
+};
+
 const actionDestination = (
   hero: Hero,
   actorIndex: number,
@@ -107,10 +154,10 @@ const actionDestination = (
   if (!action) return fallback;
 
   if (socialActions.has(action.actionId) && action.targetId) {
+    const actor = actors[hero.id];
     const target = actors[action.targetId];
-    if (target && target.phase !== 'away') {
-      const offset = actorIndex % 2 === 0 ? -3.3 : 3.3;
-      return { x: target.position.x + offset, y: target.position.y + 0.8 };
+    if (actor && target && target.phase !== 'away') {
+      return reciprocalSocialDestination(hero, actor, target) ?? oneSidedSocialDestination(hero, actor, target);
     }
   }
 
@@ -137,6 +184,66 @@ const clearScenePresentation = (actor: RuntimeActor): void => {
   actor.roleLabel = undefined;
   actor.reaction = undefined;
   actor.sceneProp = undefined;
+  actor.focusPoint = undefined;
+  actor.formation = undefined;
+  actor.choreographySlot = undefined;
+  actor.bubbleLane = undefined;
+  actor.socialDistance = undefined;
+  actor.pairGesture = undefined;
+  actor.partnerId = undefined;
+};
+
+const applyDirectivePresentation = (actor: RuntimeActor, directive: RuntimeDirective): void => {
+  actor.sceneId = directive.sceneId;
+  actor.gesture = directive.gesture;
+  actor.roleLabel = directive.roleLabel;
+  actor.reaction = directive.reaction;
+  actor.sceneProp = directive.prop;
+  actor.actionId = directive.actionId;
+  actor.targetId = directive.targetId;
+  actor.bubble = directive.bubble;
+  actor.focusPoint = directive.focusPoint ? { ...directive.focusPoint } : undefined;
+  actor.formation = directive.formation;
+  actor.choreographySlot = directive.choreographySlot;
+  actor.bubbleLane = directive.bubbleLane;
+  actor.socialDistance = directive.socialDistance;
+  actor.pairGesture = directive.pairGesture;
+  actor.partnerId = directive.partnerId;
+};
+
+const faceDirectiveFocus = (
+  actor: RuntimeActor,
+  directive: RuntimeDirective,
+  actors: Record<string, RuntimeActor>,
+): void => {
+  if (directive.focusPoint && distance(actor.position, directive.focusPoint) > 0.05) {
+    actor.facing = facingFor(actor.position, directive.focusPoint);
+    return;
+  }
+  const targetId = directive.partnerId ?? directive.targetId;
+  if (!targetId) return;
+  const target = actors[targetId];
+  if (target && target.phase !== 'away' && distance(actor.position, target.position) > 0.05) {
+    actor.facing = facingFor(actor.position, target.position);
+  }
+};
+
+const directiveKey = (directive: RuntimeDirective, heroId: string): string => [
+  'scene',
+  directive.sceneId,
+  heroId,
+  directive.position.x.toFixed(2),
+  directive.position.y.toFixed(2),
+  directive.formation ?? 'none',
+  directive.choreographySlot ?? -1,
+  directive.gesture,
+  directive.pairGesture ?? 'none',
+].join(':');
+
+const genericPairGesture = (actionId: ActionId): ChoreographyGesture => {
+  if (actionId === 'help') return 'offer';
+  if (actionId === 'apologize') return 'appeal';
+  return 'offer';
 };
 
 export const useRealtimeActors = (world: WorldState, speedMultiplier: number) => {
@@ -161,6 +268,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
             ...actor,
             position: { ...actor.position },
             route: actor.route.map((point) => ({ ...point })),
+            focusPoint: actor.focusPoint ? { ...actor.focusPoint } : undefined,
           }]),
         ) as Record<string, RuntimeActor>;
         const currentWorld = worldRef.current;
@@ -172,15 +280,8 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
           const directive = visualDirectiveForHero(currentWorld, hero.id);
 
           if (directive) {
-            const key = `scene:${directive.sceneId}:${currentWorld.tick}:${directive.gesture}:${hero.id}`;
-            actor.sceneId = directive.sceneId;
-            actor.gesture = directive.gesture;
-            actor.roleLabel = directive.roleLabel;
-            actor.reaction = directive.reaction;
-            actor.sceneProp = directive.prop;
-            actor.actionId = directive.actionId;
-            actor.targetId = directive.targetId;
-            actor.bubble = directive.bubble;
+            const key = directiveKey(directive, hero.id);
+            applyDirectivePresentation(actor, directive);
 
             if (actor.actionKey !== key) {
               actor.actionKey = key;
@@ -191,10 +292,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
             const waypoint = actor.route[0];
             if (!waypoint) {
               actor.phase = directive.phase;
-              if (directive.targetId) {
-                const target = next[directive.targetId];
-                if (target) actor.facing = facingFor(actor.position, target.position);
-              }
+              faceDirectiveFocus(actor, directive, next);
               return;
             }
 
@@ -203,6 +301,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
               actor.position = { ...waypoint };
               actor.route.shift();
               actor.phase = actor.route.length ? 'moving' : directive.phase;
+              if (!actor.route.length) faceDirectiveFocus(actor, directive, next);
               return;
             }
 
@@ -232,6 +331,14 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
           const destination = actionDestination(hero, index, next);
           const dynamicSocialTarget = socialActions.has(action.actionId) && Boolean(action.targetId);
 
+          if (dynamicSocialTarget) {
+            actor.formation = 'pair';
+            actor.socialDistance = 'personal';
+            actor.pairGesture = genericPairGesture(action.actionId);
+            actor.partnerId = action.targetId;
+            actor.bubbleLane = index % 2 === 0 ? -1 : 1;
+          }
+
           if (actor.actionKey !== key) {
             actor.actionKey = key;
             actor.actionId = action.actionId;
@@ -240,12 +347,15 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
             actor.route = routeFor(actor.position, destination);
             actor.phase = 'moving';
           } else if (dynamicSocialTarget && actor.phase === 'moving') {
-            actor.route = [destination];
+            const routeEnd = actor.route.at(-1);
+            if (!routeEnd || distance(routeEnd, destination) > 0.8) actor.route = routeFor(actor.position, destination);
           }
 
           const waypoint = actor.route[0];
           if (!waypoint) {
             actor.phase = actionPhase(action.actionId);
+            const target = action.targetId ? next[action.targetId] : undefined;
+            if (target && target.phase !== 'away') actor.facing = facingFor(actor.position, target.position);
             return;
           }
 
@@ -254,6 +364,10 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
             actor.position = { ...waypoint };
             actor.route.shift();
             actor.phase = actor.route.length ? 'moving' : actionPhase(action.actionId);
+            if (!actor.route.length && action.targetId) {
+              const target = next[action.targetId];
+              if (target && target.phase !== 'away') actor.facing = facingFor(actor.position, target.position);
+            }
             return;
           }
 
