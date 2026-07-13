@@ -33,7 +33,9 @@ jobs:
           set -euo pipefail
           PUBLIC_ROOT="https://terratectra.github.io/tavernborne/"
           for attempt in $(seq 1 60); do
-            curl --fail --silent --show-error --location --no-cache "${PUBLIC_ROOT}?verify=${GITHUB_RUN_ID}-${attempt}" -o public-index.html || true
+            curl --fail --silent --show-error --location \
+              -H "Cache-Control: no-cache" -H "Pragma: no-cache" \
+              "${PUBLIC_ROOT}?verify=${GITHUB_RUN_ID}-${attempt}" -o public-index.html || true
             ASSET_PATH=$(python - <<'PY'
           import re
           from pathlib import Path
@@ -48,7 +50,9 @@ jobs:
               else
                 BUNDLE_URL="${PUBLIC_ROOT}${ASSET_PATH#./}"
               fi
-              curl --fail --silent --show-error --location --no-cache "${BUNDLE_URL}?verify=${GITHUB_RUN_ID}-${attempt}" -o public-bundle.js || true
+              curl --fail --silent --show-error --location \
+                -H "Cache-Control: no-cache" -H "Pragma: no-cache" \
+                "${BUNDLE_URL}?verify=${GITHUB_RUN_ID}-${attempt}" -o public-bundle.js || true
               if python - <<'PY'
           from pathlib import Path
           path = Path('public-bundle.js')
