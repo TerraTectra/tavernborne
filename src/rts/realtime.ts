@@ -6,6 +6,10 @@ import {
   type ChoreographyDistance,
   type ChoreographyFormation,
   type ChoreographyGesture,
+  type DialogueCadence,
+  type DialogueLength,
+  type DialoguePerformanceId,
+  type DialogueTone,
   type EmotionalPerformanceId,
   type EmotionalPerformanceMetadata,
   type Hero,
@@ -50,6 +54,18 @@ export interface RuntimeActor {
   bodyTension?: number;
   expressionSymbol?: string;
   expressionColor?: string;
+  dialoguePerformance?: DialoguePerformanceId;
+  dialogueLength?: DialogueLength;
+  dialogueCadence?: DialogueCadence;
+  dialogueTone?: DialogueTone;
+  dialogueWordCount?: number;
+  dialogueIsSpeaker?: boolean;
+  dialogueOriginalText?: string;
+  dialogueMemoryId?: string;
+  dialogueMemoryReference?: string;
+  dialoguePartnerId?: string;
+  dialogueReason?: string;
+  dialogueColor?: string;
 }
 
 const initialPositions: Record<string, Point> = {
@@ -179,6 +195,21 @@ const applyEmotionalPerformance = (actor: RuntimeActor, performance: EmotionalPe
   actor.expressionColor = performance.expressionColor;
 };
 
+const clearDialoguePresentation = (actor: RuntimeActor): void => {
+  actor.dialoguePerformance = undefined;
+  actor.dialogueLength = undefined;
+  actor.dialogueCadence = undefined;
+  actor.dialogueTone = undefined;
+  actor.dialogueWordCount = undefined;
+  actor.dialogueIsSpeaker = undefined;
+  actor.dialogueOriginalText = undefined;
+  actor.dialogueMemoryId = undefined;
+  actor.dialogueMemoryReference = undefined;
+  actor.dialoguePartnerId = undefined;
+  actor.dialogueReason = undefined;
+  actor.dialogueColor = undefined;
+};
+
 const clearScenePresentation = (actor: RuntimeActor): void => {
   actor.sceneId = undefined;
   actor.gesture = undefined;
@@ -192,6 +223,7 @@ const clearScenePresentation = (actor: RuntimeActor): void => {
   actor.socialDistance = undefined;
   actor.pairGesture = undefined;
   actor.partnerId = undefined;
+  clearDialoguePresentation(actor);
 };
 
 const applyDirectivePresentation = (actor: RuntimeActor, directive: RuntimeDirective): void => {
@@ -210,6 +242,18 @@ const applyDirectivePresentation = (actor: RuntimeActor, directive: RuntimeDirec
   actor.socialDistance = directive.socialDistance;
   actor.pairGesture = directive.pairGesture;
   actor.partnerId = directive.partnerId;
+  actor.dialoguePerformance = directive.dialoguePerformance;
+  actor.dialogueLength = directive.dialogueLength;
+  actor.dialogueCadence = directive.dialogueCadence;
+  actor.dialogueTone = directive.dialogueTone;
+  actor.dialogueWordCount = directive.dialogueWordCount;
+  actor.dialogueIsSpeaker = directive.dialogueIsSpeaker;
+  actor.dialogueOriginalText = directive.dialogueOriginalText;
+  actor.dialogueMemoryId = directive.dialogueMemoryId;
+  actor.dialogueMemoryReference = directive.dialogueMemoryReference;
+  actor.dialoguePartnerId = directive.dialoguePartnerId;
+  actor.dialogueReason = directive.dialogueReason;
+  actor.dialogueColor = directive.dialogueColor;
   applyEmotionalPerformance(actor, directive);
 };
 
@@ -227,7 +271,7 @@ const faceDirectiveFocus = (actor: RuntimeActor, directive: RuntimeDirective, ac
 const directiveKey = (directive: RuntimeDirective, heroId: string): string => [
   'scene', directive.sceneId, heroId, directive.position.x.toFixed(2), directive.position.y.toFixed(2),
   directive.formation ?? 'none', directive.choreographySlot ?? -1, directive.gesture,
-  directive.pairGesture ?? 'none', directive.emotionalPerformance,
+  directive.pairGesture ?? 'none', directive.emotionalPerformance, directive.dialoguePerformance,
 ].join(':');
 
 const genericPairGesture = (actionId: ActionId): ChoreographyGesture => {
