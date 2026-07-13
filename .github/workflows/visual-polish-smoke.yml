@@ -1,0 +1,60 @@
+name: Visual Polish v1 smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/tavernborne-visual-polish-preview.log 2>&1 &
+          echo $! > /tmp/tavernborne-visual-polish-preview.pid
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:4173/tavernborne/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tavernborne-visual-polish-preview.log
+          exit 1
+
+      - name: Test Visual Polish v1 in Chromium
+        run: node scripts/visual-polish-smoke.mjs
+
+      - name: Upload visual diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-polish-v1-diagnostics
+          path: |
+            visual-polish-diagnostics.json
+            visual-polish-v1.png
+            visual-polish-failure.png
+          if-no-files-found: ignore
