@@ -68,7 +68,7 @@ try {
   await dungeonOverlay.waitFor({ timeout: 10000 });
   const dungeonMap = page.getByTestId('dungeon-rts-map');
   await dungeonMap.waitFor();
-  const dungeonCanvas = dungeonMap.locator('canvas');
+  const dungeonCanvas = dungeonMap.locator(':scope > canvas').first();
   await dungeonCanvas.waitFor();
   const dungeonBox = await dungeonCanvas.boundingBox();
   diagnosticState.dungeonBox = dungeonBox;
