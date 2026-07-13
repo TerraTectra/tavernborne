@@ -40,6 +40,9 @@ jobs:
           console.log(JSON.stringify({ models: required.map((id) => manifest.models[id]), missing: manifest.missing }, null, 2));
           NODE
 
+      - name: Validate packaged glTF dependencies
+        run: node scripts/verify-quaternius-dependencies.mjs | tee quaternius-dependencies.json
+
       - name: Capture model catalog
         run: |
           find .asset-cache/quaternius -type f \( -iname '*.gltf' -o -iname '*.glb' \) \
@@ -77,5 +80,6 @@ jobs:
             environment-pipeline-diagnostics.json
             environment-pipeline-*.png
             environment-model-catalog.txt
+            quaternius-dependencies.json
             public/assets/quaternius/manifest.json
           if-no-files-found: ignore
