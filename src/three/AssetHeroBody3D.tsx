@@ -190,7 +190,9 @@ function RiggedHeroBody3D({
     next.reset().setLoop(LoopRepeat, Infinity).fadeIn(0.24).play();
     next.timeScale = clamp((intent === 'walk' ? 1.05 : 0.92) * (1 - fatigue * 0.34) * (1 - injury * 0.18), 0.42, 1.25);
     currentAction.current = next;
-    return () => next.fadeOut(0.16);
+    return () => {
+      next.fadeOut(0.16);
+    };
   }, [actions, clipName, fatigue, injury, intent]);
 
   useFrame(({ clock }) => {
