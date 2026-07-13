@@ -1,3 +1,4 @@
+import { performDialogue } from './dialogue-performance';
 import { performEmotion } from './emotional-performance';
 import { cloneWorld } from './internal';
 import { advanceLifeScenes, lifeDirectiveForHero, prepareLifeScenes } from './life-scenes';
@@ -34,5 +35,6 @@ export const visualDirectiveForHero = (world: WorldState, heroId: string) => {
   const choreographed = choreographDirective(world, heroId, base);
   const refined = refineChoreographyDirective(world, heroId, choreographed);
   const emotional = performEmotion(world, heroId, refined);
-  return performRelationship(world, heroId, emotional);
+  const relational = performRelationship(world, heroId, emotional);
+  return performDialogue(world, heroId, relational);
 };

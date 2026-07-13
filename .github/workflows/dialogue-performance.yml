@@ -1,0 +1,65 @@
+name: Dialogue Performance v1 smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > dialogue-performance-preview.log 2>&1 &
+          echo $! > dialogue-performance-preview.pid
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat dialogue-performance-preview.log
+          exit 1
+
+      - name: Test Dialogue Performance v1 in Chromium
+        run: node scripts/dialogue-performance-smoke.mjs
+
+      - name: Upload dialogue performance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dialogue-performance-v1-diagnostics
+          path: |
+            dialogue-performance-diagnostics.json
+            dialogue-performance-warm.png
+            dialogue-performance-memory.png
+            dialogue-performance-wounded.png
+            dialogue-performance-leader.png
+            dialogue-performance-final.png
+            dialogue-performance-preview.log
+          if-no-files-found: ignore

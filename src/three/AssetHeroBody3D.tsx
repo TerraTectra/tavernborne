@@ -60,6 +60,18 @@ export interface AssetHeroBody3DProps {
     bodyTension?: number;
     expressionSymbol?: string;
     expressionColor?: string;
+    dialoguePerformance?: RuntimeActor['dialoguePerformance'];
+    dialogueLength?: RuntimeActor['dialogueLength'];
+    dialogueCadence?: RuntimeActor['dialogueCadence'];
+    dialogueTone?: RuntimeActor['dialogueTone'];
+    dialogueWordCount?: number;
+    dialogueIsSpeaker?: boolean;
+    dialogueOriginalText?: string;
+    dialogueMemoryId?: string;
+    dialogueMemoryReference?: string;
+    dialoguePartnerId?: string;
+    dialogueReason?: string;
+    dialogueColor?: string;
   };
   position: [number, number, number];
   selected?: boolean;
@@ -276,6 +288,9 @@ function RiggedHeroBody3D({
   const bubbleX = bubbleLane * 0.4;
   const bubbleY = (compact ? 3.03 : 3.42) + Math.abs(bubbleLane) * 0.1;
   const labelX = bubbleLane * 0.08;
+  const dialogueColor = actor.dialogueColor ?? actor.expressionColor ?? '#cbd5e1';
+  const dialogueMaxWidth = actor.dialogueLength === 'expanded' ? 340 : actor.dialogueLength === 'terse' ? 220 : 280;
+  const dialogueLineHeight = actor.dialogueCadence === 'halting' ? 1.5 : actor.dialogueCadence === 'clipped' ? 1.28 : 1.38;
   const equipmentDrawn = actor.actionId === 'train'
     || actor.actionId === 'dungeon'
     || actor.sceneProp === 'weapon'
@@ -376,6 +391,15 @@ function RiggedHeroBody3D({
           data-body-lean={(actor.bodyLean ?? 0).toFixed(3)}
           data-body-tension={(actor.bodyTension ?? 0).toFixed(2)}
           data-expression-symbol={actor.expressionSymbol ?? ''}
+          data-dialogue-performance={actor.dialoguePerformance ?? 'none'}
+          data-dialogue-length={actor.dialogueLength ?? 'none'}
+          data-dialogue-cadence={actor.dialogueCadence ?? 'none'}
+          data-dialogue-tone={actor.dialogueTone ?? 'none'}
+          data-dialogue-word-count={actor.dialogueWordCount ?? 0}
+          data-dialogue-is-speaker={actor.dialogueIsSpeaker ? 'true' : 'false'}
+          data-dialogue-memory-id={actor.dialogueMemoryId ?? 'none'}
+          data-dialogue-partner-id={actor.dialoguePartnerId ?? 'none'}
+          data-dialogue-reason={actor.dialogueReason ?? ''}
           data-facing={actor.facing ?? 'down'}
           data-world-x={worldPosition ? worldPosition.x.toFixed(2) : 'na'}
           data-world-y={worldPosition ? worldPosition.y.toFixed(2) : 'na'}
@@ -404,9 +428,22 @@ function RiggedHeroBody3D({
         <Html center position={[bubbleX, bubbleY, 0]} zIndexRange={[35, 12]}>
           <span
             className="world3d-bubble"
+            data-testid={`dialogue-bubble-${hero.id}`}
             data-bubble-lane={bubbleLane}
             data-emotional-performance={actor.emotionalPerformance ?? 'neutral'}
-            style={{ borderColor: showExpression ? `${expressionColor}88` : undefined }}
+            data-dialogue-performance={actor.dialoguePerformance ?? 'none'}
+            data-dialogue-length={actor.dialogueLength ?? 'none'}
+            data-dialogue-cadence={actor.dialogueCadence ?? 'none'}
+            data-dialogue-tone={actor.dialogueTone ?? 'none'}
+            data-dialogue-word-count={actor.dialogueWordCount ?? 0}
+            data-dialogue-memory-id={actor.dialogueMemoryId ?? 'none'}
+            title={actor.dialogueReason}
+            style={{
+              borderColor: actor.dialogueIsSpeaker ? `${dialogueColor}aa` : showExpression ? `${expressionColor}88` : undefined,
+              maxWidth: dialogueMaxWidth,
+              lineHeight: dialogueLineHeight,
+              letterSpacing: actor.dialogueCadence === 'clipped' ? '0.01em' : undefined,
+            }}
           >
             {actor.bubble}
           </span>
