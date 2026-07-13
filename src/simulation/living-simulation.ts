@@ -1,3 +1,4 @@
+import { continueConversation } from './conversation-continuity';
 import { performDialogue } from './dialogue-performance';
 import { performEmotion } from './emotional-performance';
 import { cloneWorld } from './internal';
@@ -36,5 +37,6 @@ export const visualDirectiveForHero = (world: WorldState, heroId: string) => {
   const refined = refineChoreographyDirective(world, heroId, choreographed);
   const emotional = performEmotion(world, heroId, refined);
   const relational = performRelationship(world, heroId, emotional);
-  return performDialogue(world, heroId, relational);
+  const dialogued = performDialogue(world, heroId, relational);
+  return continueConversation(world, heroId, dialogued);
 };

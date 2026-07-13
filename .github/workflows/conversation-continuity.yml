@@ -1,0 +1,65 @@
+name: Conversation Continuity v1 smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > conversation-continuity-preview.log 2>&1 &
+          echo $! > conversation-continuity-preview.pid
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat conversation-continuity-preview.log
+          exit 1
+
+      - name: Test Conversation Continuity v1 in Chromium
+        run: node scripts/conversation-continuity-smoke.mjs
+
+      - name: Upload conversation continuity diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conversation-continuity-v1-diagnostics
+          path: |
+            conversation-continuity-diagnostics.json
+            conversation-continuity-acknowledge.png
+            conversation-continuity-challenge.png
+            conversation-continuity-repair.png
+            conversation-continuity-council.png
+            conversation-continuity-final.png
+            conversation-continuity-preview.log
+          if-no-files-found: ignore

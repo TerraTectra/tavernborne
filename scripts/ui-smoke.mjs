@@ -118,6 +118,7 @@ try {
   await advanceHour(400);
   await waitActorCondition('data-phase', 'value === "away"');
   assert.ok((await page.getByTestId('dungeon-panel').textContent())?.includes('В подземелье'), 'Поход не активен');
+  await page.getByTestId('visual-scene-panel').waitFor({ state: 'detached', timeout: 5000 });
   assert.equal(await page.getByTestId('visual-scene-panel').count(), 0, 'Завершённый совет остался активным');
   await page.getByTestId('dungeon-rts-map').waitFor({ timeout: 7000 });
 
