@@ -17,7 +17,11 @@ const pbrFallbacks = new Map([
   ['t_trim_props_basecolor.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPYsqDpPwAGuALWUk6tNgAAAABJRU5ErkJggg=='],
   ['t_trim_props_normal.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNoaPj/HwAGggL/s75RMwAAAABJRU5ErkJggg=='],
   ['t_trim_metal_normal.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNoaPj/HwAGggL/s75RMwAAAABJRU5ErkJggg=='],
+  ['t_trim_furniture_normal.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNoaPj/HwAGggL/s75RMwAAAABJRU5ErkJggg=='],
   ['t_trim_props_orm.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4f4fhPwAHlALbY53LjQAAAABJRU5ErkJggg=='],
+  ['leaves_normaltree_c.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPwqLD6DwAEAAH6YWzOKwAAAABJRU5ErkJggg=='],
+  ['bark_normaltree_normal.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNoaPj/HwAGggL/s75RMwAAAABJRU5ErkJggg=='],
+  ['bark_normaltree.png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMo8NH9DwAEAgHpuvzp4wAAAABJRU5ErkJggg=='],
 ]);
 
 async function exists(filePath) {
