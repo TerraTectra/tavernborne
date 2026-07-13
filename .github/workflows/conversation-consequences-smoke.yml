@@ -47,7 +47,7 @@ jobs:
           exit 1
 
       - name: Test Conversation Consequences v1 in Chromium
-        run: node scripts/conversation-consequences-smoke-v2.mjs
+        run: node scripts/conversation-consequences-smoke.mjs
 
       - name: Upload conversation consequence diagnostics
         if: always()
