@@ -4,6 +4,7 @@ export { evaluateActions, applyEvent, ensureDailyPlans } from './engine';
 export * from './visual-scenes';
 export * from './life-scenes';
 export * from './social-choreography';
+export * from './emotional-performance';
 export * from './dungeon-exploration';
 export * from './physical-body';
 export { advanceLivingSimulation as advanceSimulation, visualDirectiveForHero } from './living-simulation';
