@@ -12,6 +12,7 @@ import {
   type WorldState,
 } from '../simulation';
 import type { RuntimeActor } from '../rts/realtime';
+import { EnvironmentAsset3D } from './EnvironmentAsset3D';
 import { HeroBody3D } from './HeroBody3D';
 import './world3d.css';
 
@@ -51,6 +52,10 @@ const mapPoint = (x: number, y: number): [number, number, number] => [
   (x - 50) * 0.19, 0, (y - 50) * 0.118,
 ];
 
+function ProceduralRock({ scale = 1 }: { scale?: number }) {
+  return <mesh castShadow receiveShadow scale={[scale, scale * 0.7, scale * 0.9]} rotation={[0.08, 0.28, -0.05]}><dodecahedronGeometry args={[0.45, 0]} /><meshStandardMaterial color="#555d62" roughness={0.98} /></mesh>;
+}
+
 function Corridor({ from, to, revealed, route }: { from: DungeonRoom; to: DungeonRoom; revealed: boolean; route: boolean }) {
   const [fx, , fz] = mapPoint(from.x, from.y);
   const [tx, , tz] = mapPoint(to.x, to.y);
@@ -64,20 +69,37 @@ function Corridor({ from, to, revealed, route }: { from: DungeonRoom; to: Dungeo
         <boxGeometry args={[revealed ? 0.86 : 0.52, 0.12, length]} />
         <meshStandardMaterial color={revealed ? '#3d4650' : '#151a20'} roughness={1} />
       </mesh>
+      {revealed && [-0.38, 0.38].map((side, index) => (
+        <EnvironmentAsset3D
+          key={side}
+          assetId="rock"
+          position={[(fx + tx) / 2 + Math.cos(angle) * side, 0.05, (fz + tz) / 2 - Math.sin(angle) * side]}
+          rotation={[0, angle + index * 0.8, 0]}
+          size={0.42}
+          fallback={<ProceduralRock scale={0.4} />}
+        />
+      ))}
       {route && revealed && <Line points={[[fx, 0.12, fz], [tx, 0.12, tz]]} color="#e3b45c" lineWidth={2.4} transparent opacity={0.72} />}
+    </group>
+  );
+}
+
+function ProceduralChest({ opened }: { opened: boolean }) {
+  return (
+    <group rotation={[0, -0.25, 0]}>
+      <mesh castShadow receiveShadow><boxGeometry args={[0.72, 0.42, 0.5]} /><meshStandardMaterial color="#6f4424" roughness={0.82} /></mesh>
+      <mesh castShadow position={[0, opened ? 0.55 : 0.28, opened ? -0.18 : 0]} rotation={[opened ? -0.9 : 0, 0, 0]}><boxGeometry args={[0.76, 0.16, 0.54]} /><meshStandardMaterial color="#8b5b2c" roughness={0.78} /></mesh>
+      <mesh position={[0, 0.2, 0.265]}><boxGeometry args={[0.16, 0.18, 0.04]} /><meshStandardMaterial color="#d0a54c" metalness={0.65} roughness={0.35} /></mesh>
     </group>
   );
 }
 
 function Chest({ opened }: { opened: boolean }) {
   return (
-    <group position={[0, 0.2, 0]} rotation={[0, -0.25, 0]}>
-      <mesh castShadow receiveShadow><boxGeometry args={[0.72, 0.42, 0.5]} /><meshStandardMaterial color="#6f4424" roughness={0.82} /></mesh>
-      <mesh castShadow position={[0, opened ? 0.55 : 0.28, opened ? -0.18 : 0]} rotation={[opened ? -0.9 : 0, 0, 0]}>
-        <boxGeometry args={[0.76, 0.16, 0.54]} /><meshStandardMaterial color="#8b5b2c" roughness={0.78} />
-      </mesh>
-      <mesh position={[0, 0.2, 0.265]}><boxGeometry args={[0.16, 0.18, 0.04]} /><meshStandardMaterial color="#d0a54c" metalness={0.65} roughness={0.35} /></mesh>
+    <group position={[0, 0.2, 0]}>
+      <EnvironmentAsset3D assetId="crate" size={0.95} rotation={[0, -0.25, 0]} testId="dungeon-environment-cache" fallback={<ProceduralChest opened={opened} />} />
       {opened && <pointLight color="#ffd166" intensity={2.2} distance={3} position={[0, 0.65, 0]} />}
+      <Html position={[0, 0, 0]} zIndexRange={[0, 0]}><span className={opened ? 'dungeon-chest-open' : 'dungeon-chest-closed'} style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }} /></Html>
     </group>
   );
 }
@@ -91,11 +113,47 @@ function StoneGuard() {
   });
   return (
     <group ref={group}>
-      <mesh castShadow position={[0, 0.72, 0]} scale={[1.15, 1.25, 0.8]}><dodecahedronGeometry args={[0.62, 0]} /><meshStandardMaterial color="#595e62" roughness={0.94} /></mesh>
+      <EnvironmentAsset3D assetId="rock" position={[0, 0.15, 0]} size={1.45} testId="dungeon-environment-guard" fallback={<ProceduralRock scale={1.5} />} />
       <mesh castShadow position={[0, 1.48, 0]}><dodecahedronGeometry args={[0.38, 0]} /><meshStandardMaterial color="#676c70" roughness={0.92} /></mesh>
       {[-0.66, 0.66].map((x) => <mesh key={x} castShadow position={[x, 0.82, 0]} rotation={[0, 0, x < 0 ? 0.12 : -0.12]}><capsuleGeometry args={[0.16, 0.82, 4, 8]} /><meshStandardMaterial color="#555a5e" roughness={0.94} /></mesh>)}
       {[-0.28, 0.28].map((x) => <mesh key={x} position={[x, 1.53, 0.34]}><sphereGeometry args={[0.055, 10, 8]} /><meshStandardMaterial color="#ef5e4e" emissive="#ff352e" emissiveIntensity={2.2} /></mesh>)}
       <pointLight color="#ff4d40" intensity={1.5} distance={2.4} position={[0, 1.52, 0.4]} />
+      <Html position={[0, 0, 0]} zIndexRange={[0, 0]}><span className="dungeon-enemy" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }} /></Html>
+    </group>
+  );
+}
+
+function TrapFeature({ detected }: { detected: boolean | undefined }) {
+  return (
+    <group>
+      {[-0.5, 0, 0.5].flatMap((x) => [-0.42, 0.1, 0.62].map((z, index) => (
+        <group key={`${x}-${z}`} position={[x, 0.08, z]}>
+          <mesh receiveShadow><boxGeometry args={[0.72, 0.1, 0.62]} /><meshStandardMaterial color={detected ? '#9b7837' : '#4b4d49'} emissive={detected ? '#7a4b11' : '#000000'} emissiveIntensity={detected ? 0.28 : 0} roughness={0.92} /></mesh>
+          <EnvironmentAsset3D assetId="rock" position={[0.18, 0.03, -0.12]} size={0.28 + index * 0.03} fallback={<group />} />
+        </group>
+      )))}
+      {detected && <Sparkles count={18} scale={[2.1, 0.6, 2]} size={2.2} color="#ffc75e" position={[0, 0.34, 0.1]} />}
+      <Html position={[0, 0, 0]} zIndexRange={[0, 0]}><span className="dungeon-trap" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }} /></Html>
+    </group>
+  );
+}
+
+function RefugeFeature() {
+  return (
+    <group>
+      <mesh receiveShadow position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.15, 28]} /><meshStandardMaterial color="#385148" roughness={1} /></mesh>
+      <EnvironmentAsset3D assetId="shrine" size={1.35} testId="dungeon-environment-refuge" fallback={<mesh castShadow position={[0, 0.28, 0]}><cylinderGeometry args={[0.76, 0.92, 0.48, 12]} /><meshStandardMaterial color="#434b46" roughness={0.94} /></mesh>} />
+      <mesh position={[0, 0.78, 0]}><sphereGeometry args={[0.18, 14, 10]} /><meshStandardMaterial color="#73d6c3" emissive="#42bfa8" emissiveIntensity={1.7} /></mesh>
+      <pointLight color="#65d9c4" intensity={2.4} distance={3.8} position={[0, 0.98, 0]} />
+    </group>
+  );
+}
+
+function ProceduralEntrance() {
+  return (
+    <group position={[0, 0, 0.5]}>
+      {[-0.8, 0.8].map((x) => <mesh key={x} castShadow position={[x, 0.72, 0]}><boxGeometry args={[0.38, 1.44, 0.42]} /><meshStandardMaterial color="#59626b" roughness={0.96} /></mesh>)}
+      <mesh castShadow position={[0, 1.42, 0]}><boxGeometry args={[1.95, 0.38, 0.46]} /><meshStandardMaterial color="#5d646a" roughness={0.96} /></mesh>
     </group>
   );
 }
@@ -104,34 +162,14 @@ function RoomFeature({ room, exploration }: { room: DungeonRoom; exploration: Ex
   if (!room.discovered) return null;
   if (room.kind === 'cache') return <Chest opened={Boolean(exploration.chestOpened)} />;
   if (room.kind === 'enemy' && exploration.enemySpotted) return <StoneGuard />;
-  if (room.kind === 'trap') {
+  if (room.kind === 'trap') return <TrapFeature detected={exploration.trapDetected} />;
+  if (room.kind === 'refuge') return <RefugeFeature />;
+  if (room.kind === 'entrance') return <EnvironmentAsset3D assetId="dungeonGate" position={[0, 0, 0.5]} size={2.3} testId="dungeon-environment-gate" fallback={<ProceduralEntrance />} />;
+  if (room.kind === 'hall' || room.kind === 'fork') {
     return (
       <group>
-        {[-0.5, 0, 0.5].flatMap((x) => [-0.42, 0.1, 0.62].map((z) => (
-          <mesh key={`${x}-${z}`} receiveShadow position={[x, 0.08, z]}>
-            <boxGeometry args={[0.72, 0.1, 0.62]} />
-            <meshStandardMaterial color={exploration.trapDetected ? '#9b7837' : '#4b4d49'} emissive={exploration.trapDetected ? '#7a4b11' : '#000000'} emissiveIntensity={exploration.trapDetected ? 0.28 : 0} roughness={0.92} />
-          </mesh>
-        )))}
-        {exploration.trapDetected && <Sparkles count={18} scale={[2.1, 0.6, 2]} size={2.2} color="#ffc75e" position={[0, 0.34, 0.1]} />}
-      </group>
-    );
-  }
-  if (room.kind === 'refuge') {
-    return (
-      <group>
-        <mesh receiveShadow position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.15, 28]} /><meshStandardMaterial color="#385148" roughness={1} /></mesh>
-        <mesh castShadow position={[0, 0.28, 0]}><cylinderGeometry args={[0.76, 0.92, 0.48, 12]} /><meshStandardMaterial color="#434b46" roughness={0.94} /></mesh>
-        <mesh position={[0, 0.56, 0]}><sphereGeometry args={[0.18, 14, 10]} /><meshStandardMaterial color="#73d6c3" emissive="#42bfa8" emissiveIntensity={1.7} /></mesh>
-        <pointLight color="#65d9c4" intensity={2.4} distance={3.8} position={[0, 0.78, 0]} />
-      </group>
-    );
-  }
-  if (room.kind === 'entrance') {
-    return (
-      <group position={[0, 0, 0.5]}>
-        {[-0.8, 0.8].map((x) => <mesh key={x} castShadow position={[x, 0.72, 0]}><boxGeometry args={[0.38, 1.44, 0.42]} /><meshStandardMaterial color="#59626b" roughness={0.96} /></mesh>)}
-        <mesh castShadow position={[0, 1.42, 0]}><boxGeometry args={[1.95, 0.38, 0.46]} /><meshStandardMaterial color="#5d646a" roughness={0.96} /></mesh>
+        <EnvironmentAsset3D assetId="lamp" position={[-0.72, 0, -0.36]} size={0.62} testId={room.kind === 'hall' ? 'dungeon-environment-lamp' : undefined} fallback={<group />} />
+        <EnvironmentAsset3D assetId="barrel" position={[0.72, 0, 0.38]} size={0.55} fallback={<group />} />
       </group>
     );
   }
@@ -151,6 +189,7 @@ function DungeonRoom3D({ room, exploration }: { room: DungeonRoom; exploration: 
           <mesh castShadow receiveShadow position={[0, 0.38, -depth / 2]}><boxGeometry args={[width, 0.78, 0.18]} /><meshStandardMaterial color="#30363c" roughness={0.98} /></mesh>
           <mesh castShadow receiveShadow position={[-width / 2, 0.38, 0]}><boxGeometry args={[0.18, 0.78, depth]} /><meshStandardMaterial color="#343a40" roughness={0.98} /></mesh>
           <mesh castShadow receiveShadow position={[width / 2, 0.38, 0]}><boxGeometry args={[0.18, 0.78, depth]} /><meshStandardMaterial color="#343a40" roughness={0.98} /></mesh>
+          <EnvironmentAsset3D assetId="rock" position={[-width / 2 + 0.2, 0.12, -depth / 2 + 0.2]} size={0.48} testId={room.kind === 'hall' ? 'dungeon-environment-rock' : undefined} fallback={<ProceduralRock scale={0.42} />} />
           <RoomFeature room={room} exploration={exploration} />
           <Html center position={[0, 1.72, 0]} zIndexRange={[30, 10]}>
             <div className="dungeon3d-room-label" data-testid={`dungeon-room-${room.id}`} data-discovered="true" data-visited={room.visited ? 'true' : 'false'}><strong>{room.label}</strong><span>опасность {room.danger}</span></div>
@@ -174,9 +213,9 @@ function DungeonScene({ world, expedition }: DungeonWorld3DProps) {
   const routePairs = new Set(exploration.routeHistory.slice(0, -1).map((id, index) => `${id}:${exploration.routeHistory[index + 1]}`));
   return (
     <>
-      <color attach="background" args={['#080b10']} /><fog attach="fog" args={['#080b10', 17, 30]} />
-      <ambientLight intensity={0.48} /><hemisphereLight args={['#6f8ca7', '#16120e', 0.82]} />
-      <directionalLight castShadow position={[-8, 13, 9]} intensity={1.45} color="#a8c5de" shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-13} shadow-camera-right={13} shadow-camera-top={9} shadow-camera-bottom={-9} />
+      <color attach="background" args={['#070a0e']} /><fog attach="fog" args={['#070a0e', 17, 30]} />
+      <ambientLight intensity={0.42} /><hemisphereLight args={['#6f8ca7', '#16120e', 0.78]} />
+      <directionalLight castShadow position={[-8, 13, 9]} intensity={1.42} color="#a8c5de" shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-13} shadow-camera-right={13} shadow-camera-top={9} shadow-camera-bottom={-9} />
       <pointLight color="#668dff" intensity={3.2} distance={14} position={[0, 5, 0]} />
       <mesh receiveShadow position={[0, -0.16, 0]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[22, 14]} /><meshStandardMaterial color="#14191e" roughness={1} /></mesh>
       {exploration.corridors.map((corridor) => {
@@ -211,7 +250,7 @@ export function DungeonWorld3D({ world, expedition }: DungeonWorld3DProps) {
   const latestDecision = exploration.decisions[0];
   return (
     <section className="world3d-dungeon-shell relative min-h-[720px] overflow-hidden rounded-3xl border border-sky-200/15 bg-[#070b10] shadow-2xl" data-testid="dungeon-rts-map">
-      <Canvas orthographic shadows dpr={[1, 1.65]} camera={{ position: cameraPosition, zoom: 55, near: 0.1, far: 80 }} onCreated={({ camera, gl, scene }) => { camera.lookAt(0, 0.4, 0); gl.setClearColor(new Color('#080b10')); scene.background = new Color('#080b10'); }}>
+      <Canvas orthographic shadows dpr={[1, 1.65]} camera={{ position: cameraPosition, zoom: 55, near: 0.1, far: 80 }} onCreated={({ camera, gl, scene }) => { camera.lookAt(0, 0.4, 0); gl.setClearColor(new Color('#070a0e')); scene.background = new Color('#070a0e'); }}>
         <DungeonScene world={world} expedition={expedition} />
       </Canvas>
       <header className="world3d-dungeon-header"><div><p>Визуальная 3D-экспедиция · этаж {expedition.floor}</p><h2 data-testid="dungeon-phase">{phaseLabels[exploration.phase]}</h2><span>открыто комнат: {exploration.discoveredRoomIds.length}/{exploration.rooms.length} · строй: {expedition.partyIds.length} человека</span></div><div className="world3d-dungeon-counters"><span>Туман <strong data-testid="dungeon-fog-count">{undiscovered}</strong></span><span>Прогресс <strong>{Math.round(expedition.progress)}%</strong></span></div></header>
