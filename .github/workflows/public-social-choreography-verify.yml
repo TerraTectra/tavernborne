@@ -1,0 +1,71 @@
+name: Public Social Choreography v1 verify
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Wait for merged public bundle
+        run: |
+          set -euo pipefail
+          PUBLIC_ROOT="https://terratectra.github.io/tavernborne/"
+          for attempt in {1..40}; do
+            INDEX_HTML="$(curl --fail --silent --show-error "$PUBLIC_ROOT" || true)"
+            SCRIPT_PATH="$(printf '%s' "$INDEX_HTML" | grep -oE 'src="[^"]+\.js"' | head -n 1 | cut -d'"' -f2 || true)"
+            if [ -n "$SCRIPT_PATH" ]; then
+              if [[ "$SCRIPT_PATH" == /* ]]; then
+                SCRIPT_URL="https://terratectra.github.io${SCRIPT_PATH}"
+              else
+                SCRIPT_URL="${PUBLIC_ROOT}${SCRIPT_PATH#./}"
+              fi
+              if curl --fail --silent --show-error "$SCRIPT_URL" | grep -q 'data-choreography-formation'; then
+                echo "Merged Social Choreography bundle is public: $SCRIPT_URL"
+                exit 0
+              fi
+            fi
+            echo "Public bundle is not updated yet (attempt $attempt/40)."
+            sleep 15
+          done
+          echo "Timed out waiting for the merged public bundle."
+          exit 1
+
+      - name: Verify public Social Choreography v1 in Chromium
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: node scripts/social-choreography-smoke.mjs
+
+      - name: Upload public choreography verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-social-choreography-v1-verification
+          path: |
+            social-choreography-diagnostics.json
+            social-choreography-pair.png
+            social-choreography-treatment.png
+            social-choreography-conflict.png
+            social-choreography-table.png
+            social-choreography-line.png
+            social-choreography-final.png
+          if-no-files-found: ignore
