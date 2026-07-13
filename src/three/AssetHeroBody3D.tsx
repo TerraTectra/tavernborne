@@ -15,6 +15,7 @@ import {
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Hero } from '../simulation';
 import type { RuntimeActor } from '../rts/realtime';
+import { applyModularHeroAppearance } from './ModularHeroAppearance3D';
 import { HeroBody3D as ProceduralHeroBody3D } from './ProceduralHeroBody3D';
 
 export interface AssetHeroBody3DProps {
@@ -163,15 +164,18 @@ function RiggedHeroBody3D({
   const modelRoot = useRef<Group>(null);
   const currentAction = useRef<AnimationAction | null>(null);
   const gltf = useGLTF(assetUrl);
-  const model = useMemo(() => tintScene(gltf.scene, hero.id), [gltf.scene, hero.id]);
-  const bounds = useMemo(() => {
+  const appearance = useMemo(() => {
+    const model = tintScene(gltf.scene, hero.id);
     const box = new Box3().setFromObject(model);
     const size = box.getSize(new Vector3());
+    const appearanceResult = applyModularHeroAppearance(model, hero.id);
     return {
+      model,
       scale: targetHeight / Math.max(0.001, size.y),
       floorOffset: -box.min.y,
+      ...appearanceResult,
     };
-  }, [model, targetHeight]);
+  }, [gltf.scene, hero.id, targetHeight]);
   const { actions, names } = useAnimations(gltf.animations, modelRoot);
   const intent = animationIntent(actor);
   const clipName = useMemo(() => chooseClip(names, intent), [intent, names]);
@@ -182,6 +186,7 @@ function RiggedHeroBody3D({
   const depthScale = clamp(0.92 + (body.massKg - 64) / 180, 0.84, 1.18);
   const injury = clamp(hero.condition.injury / 100, 0, 1);
   const fatigue = clamp(hero.body.tissues.muscleFatigue / 100, 0, 1);
+  const equipmentDrawn = actor.actionId === 'train' || actor.actionId === 'dungeon';
 
   useEffect(() => {
     if (!clipName) return;
@@ -196,6 +201,11 @@ function RiggedHeroBody3D({
     };
   }, [actions, clipName, fatigue, injury, intent]);
 
+  useEffect(() => {
+    if (appearance.heldEquipment) appearance.heldEquipment.visible = equipmentDrawn;
+    if (appearance.stowedEquipment) appearance.stowedEquipment.visible = !equipmentDrawn;
+  }, [appearance, equipmentDrawn]);
+
   useFrame(({ clock }) => {
     if (!root.current) return;
     root.current.rotation.y = facingAngle[actor.facing ?? 'down'];
@@ -203,7 +213,7 @@ function RiggedHeroBody3D({
     root.current.position.y = position[1] + (actor.phase === 'moving' ? Math.abs(Math.sin(clock.elapsedTime * 7.8)) * 0.018 : 0);
   });
 
-  const displayScale = bounds.scale * heightScale;
+  const displayScale = appearance.scale * heightScale;
   return (
     <group ref={root} position={position} onClick={(event) => { event.stopPropagation(); onSelect?.(); }}>
       <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]}>
@@ -217,8 +227,8 @@ function RiggedHeroBody3D({
         </mesh>
       )}
 
-      <group ref={modelRoot} scale={[displayScale * widthScale, displayScale, displayScale * depthScale]} position={[0, bounds.floorOffset * displayScale, 0]}>
-        <primitive object={model} />
+      <group ref={modelRoot} scale={[displayScale * widthScale, displayScale, displayScale * depthScale]} position={[0, appearance.floorOffset * displayScale, 0]}>
+        <primitive object={appearance.model} />
       </group>
 
       <Html center position={[0, compact ? 2.52 : 2.9, 0]} zIndexRange={[30, 10]}>
@@ -231,6 +241,9 @@ function RiggedHeroBody3D({
           data-animation={clipName ?? 'none'}
           data-animation-count={names.length}
           data-asset-source="quaternius-universal-animation-library"
+          data-appearance-profile={appearance.profileId}
+          data-appearance-modules={appearance.moduleCount}
+          data-equipment-state={equipmentDrawn ? 'drawn' : 'stowed'}
           onClick={(event) => { event.stopPropagation(); onSelect?.(); }}
         >
           <strong>{hero.name}</strong>
