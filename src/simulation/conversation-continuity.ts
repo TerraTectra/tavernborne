@@ -80,6 +80,12 @@ const lowerFirst = (value: string): string => value
   ? `${value[0].toLocaleLowerCase('ru-RU')}${value.slice(1)}`
   : value;
 
+const continuationCase = (value: string): string => {
+  const addressed = value.match(/^([^,]{1,40},\s+)([А-ЯЁ])/u);
+  if (!addressed) return lowerFirst(value);
+  return `${addressed[1]}${addressed[2].toLocaleLowerCase('ru-RU')}${value.slice(addressed[0].length)}`;
+};
+
 const compact = (value: string): string => value.replace(/\s+/gu, ' ').trim();
 
 const quoteAnchor = (value: string): string => {
@@ -159,10 +165,10 @@ const renderContinuousText = (
 ): string => {
   const base = compact(text);
   if (continuity === 'opening') return base;
-  if (continuity === 'build') return `Продолжу эту мысль: ${lowerFirst(base)}`;
+  if (continuity === 'build') return `Продолжу эту мысль: ${continuationCase(base)}`;
   if (continuity === 'conclude') return `Значит, по теме «${topic}» главное сказано. ${base}`;
   if (!anchor) return base;
-  if (continuity === 'answer') return `На слова «${anchor}» отвечу прямо: ${lowerFirst(base)}`;
+  if (continuity === 'answer') return `На слова «${anchor}» отвечу прямо: ${continuationCase(base)}`;
   if (continuity === 'challenge') return `Не могу согласиться со словами «${anchor}». ${base}`;
   if (continuity === 'repair') return `Я понимаю, что за словами «${anchor}» стоит боль. ${base}`;
   return `Я услышал тебя: «${anchor}». ${base}`;
@@ -190,6 +196,8 @@ export const continueConversation = (
     ...directive,
     bubble,
     dialogueWordCount: bubble ? bubble.trim().split(/\s+/u).filter(Boolean).length : 0,
+    dialogueReason: continuity === 'opening' ? directive.dialogueReason : `${directive.dialogueReason}; ${profile.reason}`,
+    dialogueColor: continuity === 'opening' ? directive.dialogueColor : profile.color,
     conversationContinuity: continuity,
     conversationThreadId: source?.sceneId,
     conversationTurnIndex: source?.currentLineIndex ?? 0,
