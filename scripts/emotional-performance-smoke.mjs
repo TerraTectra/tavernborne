@@ -135,6 +135,24 @@ const setWorld = async ({ presets, scene }) => {
       if (name === 'exhausted') { hero.needs.fatigue = 100; hero.psyche.burnout = 94; hero.body.tissues.muscleFatigue = 96; hero.condition.injury = 28; }
     };
     Object.entries(nextPresets).forEach(([id, name]) => preset(world.heroes[id], name));
+
+    // Emotional Performance is tested independently from political and relational modifiers.
+    // Liora is outside the tested Mira/Kael pair, while all leadership bonds are neutralized.
+    if (world.leadership) {
+      world.leadership.familyLeaderId = 'liora';
+      for (const person of Object.values(world.leadership.people ?? {})) {
+        person.role = person.heroId === 'liora' ? 'leader' : 'independent';
+        for (const bond of Object.values(person.bonds ?? {})) {
+          bond.authority = 0;
+          bond.obedience = 0;
+          bond.politicalLoyalty = 0;
+          bond.confidence = 0;
+          bond.grievance = 0;
+          bond.groupBond = 0;
+        }
+      }
+    }
+
     world.visualScenes = { scenes: [], nextId: 1 };
     world.socialScenes = [];
     world.lifeScenes = nextScene ? {
