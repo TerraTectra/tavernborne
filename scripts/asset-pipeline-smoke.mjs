@@ -54,7 +54,7 @@ const heroState = async (id) => {
 };
 
 const advanceHour = async (wait = 1000) => {
-  await page.getByRole('button', { name: '+1 час', exact: true }).click();
+  await page.getByRole('button', { name: '+1 час', exact: true }).click({ noWaitAfter: true });
   await page.waitForTimeout(wait);
 };
 
@@ -128,7 +128,15 @@ try {
   stage = 'animation-transition';
   console.log('Checking that simulation state changes drive the animation graph...');
   const animationsBefore = Object.fromEntries(initialHeroes.map((hero) => [hero.id, hero.animation]));
-  await advanceHour(1600);
+  await advanceHour(500);
+  await page.waitForFunction(
+    (before) => ['mira', 'kael', 'liora'].some((id) => {
+      const animation = document.querySelector(`[data-testid="hero-3d-${id}"]`)?.getAttribute('data-animation');
+      return Boolean(animation && animation !== before[id]);
+    }),
+    animationsBefore,
+    { timeout: 8_000 },
+  );
   const afterBreakfast = await Promise.all(['mira', 'kael', 'liora'].map(heroState));
   diagnostics.afterBreakfast = afterBreakfast;
   assert.ok(afterBreakfast.every((hero) => hero.mode === 'rigged-asset'), 'A hero fell back to the procedural body after the first simulation step');

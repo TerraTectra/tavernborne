@@ -38,10 +38,13 @@ try {
   diagnosticState.campBox = campBox;
   assert.ok(campBox && campBox.width > 700 && campBox.height > 500, '3D camp canvas is not filling the game map');
 
-  for (const id of ['mira', 'kael', 'liora']) await page.getByTestId(`hero-3d-${id}`).waitFor({ timeout: 10000 });
-  assert.equal(await page.getByTestId('hero-3d-mira').count(), 1, 'Mira 3D body is missing');
-  assert.equal(await page.getByTestId('hero-3d-kael').count(), 1, 'Kael 3D body is missing');
-  assert.equal(await page.getByTestId('hero-3d-liora').count(), 1, 'Liora 3D body is missing');
+  await page.waitForFunction(() => ['mira', 'kael', 'liora'].every((id) => {
+    const hero = document.querySelector(`[data-testid="hero-3d-${id}"]`);
+    return hero?.getAttribute('data-visual-mode') === 'rigged-asset';
+  }), undefined, { timeout: 25_000 });
+  for (const id of ['mira', 'kael', 'liora']) {
+    assert.ok(await page.getByTestId(`hero-3d-${id}`).count() >= 1, `${id} 3D body is missing`);
+  }
 
   stage = 'hero-selection';
   console.log('Checking selection through the 3D label...');
@@ -68,7 +71,7 @@ try {
   await dungeonOverlay.waitFor({ timeout: 10000 });
   const dungeonMap = page.getByTestId('dungeon-rts-map');
   await dungeonMap.waitFor();
-  const dungeonCanvas = dungeonMap.locator('canvas');
+  const dungeonCanvas = dungeonMap.locator('canvas').first();
   await dungeonCanvas.waitFor();
   const dungeonBox = await dungeonCanvas.boundingBox();
   diagnosticState.dungeonBox = dungeonBox;

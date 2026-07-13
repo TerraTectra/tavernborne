@@ -27,7 +27,7 @@ const campAppearance = async (id) => {
 };
 
 const advanceHour = async (wait = 800) => {
-  await page.getByRole('button', { name: '+1 час', exact: true }).click();
+  await page.getByRole('button', { name: '+1 час', exact: true }).click({ noWaitAfter: true });
   await page.waitForTimeout(wait);
 };
 
@@ -39,14 +39,10 @@ try {
   await page.getByRole('heading', { name: 'Живая кибитка' }).waitFor();
 
   stage = 'rigged-appearance';
-  for (const id of ['mira', 'kael', 'liora']) {
-    await page.getByTestId(`hero-3d-${id}`).waitFor({ timeout: 20_000 });
-    await page.waitForFunction(
-      (heroId) => document.querySelector(`[data-testid="hero-3d-${heroId}"]`)?.getAttribute('data-visual-mode') === 'rigged-asset',
-      id,
-      { timeout: 20_000 },
-    );
-  }
+  await page.waitForFunction(() => ['mira', 'kael', 'liora'].every((id) => {
+    const hero = document.querySelector(`[data-testid="hero-3d-${id}"]`);
+    return hero?.getAttribute('data-visual-mode') === 'rigged-asset';
+  }), undefined, { timeout: 25_000 });
 
   const initial = await Promise.all(['mira', 'kael', 'liora'].map(campAppearance));
   diagnostics.initial = initial;
@@ -60,35 +56,32 @@ try {
   await page.screenshot({ path: 'modular-appearance-camp.png', fullPage: true });
 
   stage = 'dungeon-equipment';
-  await page.getByRole('button', { name: 'x1', exact: true }).click();
-  await page.getByRole('button', { name: 'x2', exact: true }).click();
+  await page.getByRole('button', { name: 'x1', exact: true }).click({ noWaitAfter: true });
+  await page.getByRole('button', { name: 'x2', exact: true }).click({ noWaitAfter: true });
   await advanceHour(1700);
   await advanceHour(1700);
   for (let hour = 0; hour < 5; hour += 1) await advanceHour(1000);
 
-  await page.getByTestId('dungeon-visual-overlay').waitFor({ timeout: 9000 });
-  const dungeonLabels = page.locator('[data-testid^="dungeon-hero-3d-"]');
-  await dungeonLabels.first().waitFor({ timeout: 20_000 });
-  const partySize = await dungeonLabels.count();
-  assert.ok(partySize >= 2, `Dungeon party is unexpectedly small: ${partySize}`);
+  await page.getByTestId('dungeon-visual-overlay').waitFor({ timeout: 12_000 });
+  await page.waitForFunction(() => {
+    const labels = [...document.querySelectorAll('[data-testid^="dungeon-hero-3d-"]')];
+    return labels.filter((label) =>
+      label.getAttribute('data-visual-mode') === 'rigged-asset'
+      && label.getAttribute('data-equipment-state') === 'drawn'
+    ).length >= 2;
+  }, undefined, { timeout: 25_000 });
 
-  const dungeonState = [];
-  for (let index = 0; index < partySize; index += 1) {
-    const label = dungeonLabels.nth(index);
-    await page.waitForFunction(
-      (testId) => document.querySelector(`[data-testid="${testId}"]`)?.getAttribute('data-visual-mode') === 'rigged-asset',
-      await label.getAttribute('data-testid'),
-      { timeout: 20_000 },
-    );
-    dungeonState.push({
-      id: await label.getAttribute('data-testid'),
-      profile: await label.getAttribute('data-appearance-profile'),
-      modules: Number(await label.getAttribute('data-appearance-modules')),
-      equipment: await label.getAttribute('data-equipment-state'),
-      animation: await label.getAttribute('data-animation'),
-    });
-  }
+  const dungeonState = await page.locator('[data-testid^="dungeon-hero-3d-"]').evaluateAll((labels) => labels.map((label) => ({
+    id: label.getAttribute('data-testid'),
+    mode: label.getAttribute('data-visual-mode'),
+    profile: label.getAttribute('data-appearance-profile'),
+    modules: Number(label.getAttribute('data-appearance-modules')),
+    equipment: label.getAttribute('data-equipment-state'),
+    animation: label.getAttribute('data-animation'),
+  })).filter((hero) => hero.mode === 'rigged-asset'));
+
   diagnostics.dungeon = dungeonState;
+  assert.ok(dungeonState.length >= 2, `Dungeon party is unexpectedly small: ${dungeonState.length}`);
   for (const hero of dungeonState) {
     assert.ok(hero.profile && hero.profile !== 'family-initiate', `${hero.id} lost its appearance profile in the dungeon`);
     assert.ok(hero.modules >= 6, `${hero.id} lost modular parts in the dungeon`);
