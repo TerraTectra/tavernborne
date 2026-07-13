@@ -14,7 +14,7 @@ page.on('console', (message) => {
   if (message.type() === 'error') pageErrors.push(message.text());
 });
 
-const heroAppearance = async (id) => {
+const campAppearance = async (id) => {
   const label = page.getByTestId(`hero-3d-${id}`);
   return {
     id,
@@ -24,6 +24,11 @@ const heroAppearance = async (id) => {
     equipment: await label.getAttribute('data-equipment-state'),
     animation: await label.getAttribute('data-animation'),
   };
+};
+
+const advanceHour = async (wait = 800) => {
+  await page.getByRole('button', { name: '+1 час', exact: true }).click();
+  await page.waitForTimeout(wait);
 };
 
 try {
@@ -43,7 +48,7 @@ try {
     );
   }
 
-  const initial = await Promise.all(['mira', 'kael', 'liora'].map(heroAppearance));
+  const initial = await Promise.all(['mira', 'kael', 'liora'].map(campAppearance));
   diagnostics.initial = initial;
   assert.equal(new Set(initial.map((hero) => hero.profile)).size, 3, 'Heroes do not have distinct appearance profiles');
   for (const hero of initial) {
@@ -54,19 +59,35 @@ try {
   }
   await page.screenshot({ path: 'modular-appearance-camp.png', fullPage: true });
 
-  stage = 'equipment-transition';
-  let drewEquipment = false;
-  for (let step = 0; step < 12; step += 1) {
-    await page.getByRole('button', { name: '+1 час', exact: true }).click();
-    await page.waitForTimeout(800);
-    const state = await Promise.all(['mira', 'kael', 'liora'].map(heroAppearance));
-    diagnostics[`hour${step + 1}`] = state;
-    if (state.some((hero) => hero.equipment === 'drawn')) {
-      drewEquipment = true;
-      break;
-    }
+  stage = 'dungeon-equipment';
+  await page.getByRole('button', { name: 'x1', exact: true }).click();
+  await page.getByRole('button', { name: 'x2', exact: true }).click();
+  await advanceHour(1700);
+  await advanceHour(1700);
+  for (let hour = 0; hour < 5; hour += 1) await advanceHour(1000);
+
+  await page.getByTestId('dungeon-visual-overlay').waitFor({ timeout: 9000 });
+  const dungeonLabels = page.locator('[data-testid^="dungeon-hero-3d-"]');
+  const partySize = await dungeonLabels.count();
+  assert.ok(partySize >= 2, `Dungeon party is unexpectedly small: ${partySize}`);
+
+  const dungeonState = [];
+  for (let index = 0; index < partySize; index += 1) {
+    const label = dungeonLabels.nth(index);
+    dungeonState.push({
+      id: await label.getAttribute('data-testid'),
+      profile: await label.getAttribute('data-appearance-profile'),
+      modules: Number(await label.getAttribute('data-appearance-modules')),
+      equipment: await label.getAttribute('data-equipment-state'),
+      animation: await label.getAttribute('data-animation'),
+    });
   }
-  assert.ok(drewEquipment, 'No hero drew equipment during training or expedition preparation');
+  diagnostics.dungeon = dungeonState;
+  for (const hero of dungeonState) {
+    assert.ok(hero.profile && hero.profile !== 'family-initiate', `${hero.id} lost its appearance profile in the dungeon`);
+    assert.ok(hero.modules >= 6, `${hero.id} lost modular parts in the dungeon`);
+    assert.equal(hero.equipment, 'drawn', `${hero.id} did not draw equipment in the dungeon`);
+  }
   await page.screenshot({ path: 'modular-appearance-equipped.png', fullPage: true });
 
   stage = 'errors';
