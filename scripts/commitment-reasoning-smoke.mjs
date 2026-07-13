@@ -51,7 +51,11 @@ const injectScenario = async (mode) => {
       candidate.tick = 10;
       candidate.journal = [];
       candidate.socialScenes = [];
-      candidate.expeditions = [];
+      candidate.expeditions = [{
+        id: 'completed-day-zero', day: 0, floor: 1, partyIds: [], departTick: 0,
+        plannedReturnTick: 1, status: 'completed', progress: 100, risk: 0, loot: [], events: [],
+        outcome: 'Технически завершённая экспедиция для изоляции сценария',
+      }];
       candidate.visualScenes = { scenes: [], nextId: 1 };
       candidate.lifeScenes = {
         scenes: [], nextId: 1, handledSocialSceneIds: [], handledExpeditionIds: [], handledJournalIds: [],
