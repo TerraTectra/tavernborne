@@ -8,6 +8,7 @@ export * from './emotional-performance';
 export * from './relationship-performance';
 export * from './dialogue-performance';
 export * from './conversation-continuity';
+export * from './conversation-consequences';
 export * from './dungeon-exploration';
 export * from './physical-body';
 export { advanceLivingSimulation as advanceSimulation, visualDirectiveForHero } from './living-simulation';
