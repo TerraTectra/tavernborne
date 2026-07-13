@@ -15,7 +15,7 @@ import {
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Hero } from '../simulation';
 import type { RuntimeActor } from '../rts/realtime';
-import { HeroBody3D } from './HeroBody3D';
+import { HeroBody3D as ProceduralHeroBody3D } from './ProceduralHeroBody3D';
 
 export interface AssetHeroBody3DProps {
   hero: Hero;
@@ -271,7 +271,7 @@ export function AssetHeroBody3D(props: AssetHeroBody3DProps) {
     return () => { cancelled = true; };
   }, []);
 
-  const fallback = <HeroBody3D {...props} />;
+  const fallback = <ProceduralHeroBody3D {...props} />;
   if (!asset) return fallback;
 
   return (
