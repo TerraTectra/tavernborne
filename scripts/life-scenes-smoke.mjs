@@ -113,6 +113,22 @@ try {
   assert.ok(sceneActors.length >= 3, 'Конфликт не собрал участников и посредника на карте');
 
   stage = 'conflict-spacing';
+  await page.waitForFunction(() => {
+    const ids = ['mira', 'kael', 'liora'];
+    const labels = ids.map((id) => document.querySelector(`[data-testid="hero-3d-${id}"]`));
+    if (labels.some((label) => !label)) return false;
+    const centers = labels.map((label) => {
+      const box = label.getBoundingClientRect();
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    });
+    const distances = centers.flatMap((left, index) => centers.slice(index + 1).map((right) =>
+      Math.hypot(left.x - right.x, left.y - right.y)));
+    const actorsArrived = ids.filter((id) => {
+      const actor = document.querySelector(`[data-testid="actor-${id}"]`);
+      return actor?.getAttribute('data-phase') !== 'moving';
+    }).length >= 2;
+    return actorsArrived && Math.max(...distances) >= 55;
+  }, undefined, { timeout: 10_000 });
   const labelCenters = await Promise.all(['mira', 'kael', 'liora'].map(async (id) => {
     const box = await page.getByTestId(`hero-3d-${id}`).boundingBox();
     assert.ok(box, `${id} не виден в 3D-сцене конфликта`);
