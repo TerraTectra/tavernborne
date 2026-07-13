@@ -1,3 +1,4 @@
+import { advanceConversationConsequences } from './conversation-consequences';
 import { continueConversation } from './conversation-continuity';
 import { performDialogue } from './dialogue-performance';
 import { performEmotion } from './emotional-performance';
@@ -27,6 +28,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
     world = advanceExpeditionVisualSimulation(prepared, 1);
     advancePhysicalBodies(world, 1, previousActions);
     advanceLifeScenes(world);
+    advanceConversationConsequences(world);
   }
   return world;
 };
