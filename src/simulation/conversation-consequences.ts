@@ -122,9 +122,9 @@ const includesAny = (value: string, patterns: RegExp[]): boolean => patterns.som
 
 const actionHintFor = (text: string): ActionId | undefined => {
   const value = lower(text);
-  if (includesAny(value, [/помог/u, /поддерж/u, /сделаем вместе/u, /держи с этой стороны/u])) return 'help';
+  if (includesAny(value, [/помо(?:г|ч)/u, /поддерж/u, /сделаем вместе/u, /держи с этой стороны/u])) return 'help';
   if (includesAny(value, [/извин/u, /исправл/u, /винов/u])) return 'apologize';
-  if (includesAny(value, [/поговор/u, /обсуд/u, /верн[её]мся к этому/u, /скажу/u])) return 'talk';
+  if (includesAny(value, [/поговор/u, /обсуд/u, /верн[её]мся к этому/u, /вернуться к разговору/u, /скажу/u])) return 'talk';
   if (includesAny(value, [/отдохн/u, /восстанов/u, /не геройств/u])) return 'recover';
   if (includesAny(value, [/поход/u, /маршрут/u, /северн.*ворот/u, /пойд[её]м/u, /мост/u])) return 'dungeon';
   if (includesAny(value, [/почин/u, /законч/u, /проверим припасы/u, /распределим рол/u, /сделаю/u, /выполню/u])) return 'work';
@@ -135,7 +135,7 @@ const consequenceKindFor = (line: LifeDialogueLine): ConversationConsequenceKind
   const value = lower(line.text);
   const promise = includesAny(value, [
     /обещ/u,
-    /\bя (?:буду|помогу|сделаю|вернусь|останусь|проверю|исправлю|отдохну)\b/u,
+    /\bя (?:буду|помогу|помочь|сделаю|вернусь|останусь|проверю|исправлю|отдохну)\b/u,
     /\bмы (?:будем|пойд[её]м|проверим|распределим|начн[её]м)\b/u,
   ]);
   if (promise) return 'promise';
@@ -284,12 +284,13 @@ const recordScene = (world: WorldState, state: ConversationConsequenceState, sce
     if (kind === 'promise') schedulePromise(world, entry);
 
     const speaker = world.heroes[entry.speakerId];
+    const speakerName = speaker?.name ?? entry.speakerId;
     const audienceNames = audienceIds.map((audienceId) => world.heroes[audienceId]?.name ?? audienceId).join(', ');
     const valence = kind === 'grievance' || kind === 'boundary' ? -34 : kind === 'promise' || kind === 'agreement' ? 32 : 12;
     remember(
       speaker,
       `${entry.id}-${entry.speakerId}-memory`,
-      `${speaker?.name ?? entry.speakerId} сказал ${audienceNames}: «${statement}».`,
+      `Сказано ${audienceNames}: «${statement}»`,
       world.tick,
       entry.strength,
       valence,
@@ -299,7 +300,7 @@ const recordScene = (world: WorldState, state: ConversationConsequenceState, sce
     audienceIds.forEach((audienceId) => remember(
       world.heroes[audienceId],
       `${entry.id}-${audienceId}-memory`,
-      `${speaker?.name ?? entry.speakerId} сказал мне: «${statement}».`,
+      `${speakerName}: «${statement}»`,
       world.tick,
       entry.strength,
       valence,
@@ -310,8 +311,8 @@ const recordScene = (world: WorldState, state: ConversationConsequenceState, sce
     pushJournal(
       world,
       kind === 'promise'
-        ? `Обещание зафиксировано: ${speaker?.name ?? entry.speakerId} — «${statement}».`
-        : `Последствие разговора: ${speaker?.name ?? entry.speakerId} выразил ${conversationConsequenceKindLabel(kind)} — «${statement}».`,
+        ? `Обещание зафиксировано: ${speakerName} — «${statement}»`
+        : `Последствие разговора: ${speakerName} выразил ${conversationConsequenceKindLabel(kind)} — «${statement}»`,
       [entry.speakerId, ...audienceIds],
       'social',
     );
@@ -320,8 +321,14 @@ const recordScene = (world: WorldState, state: ConversationConsequenceState, sce
 
 const journalMatchesAction = (entry: JournalEntry, action: ActionId): boolean => {
   const text = lower(entry.text);
-  if (text.includes('обещание зафиксировано') || text.includes('выполнил обещание') || text.includes('нарушил обещание')) return false;
-  if (action === 'help') return includesAny(text, [/помог/u, /совместн.*помощ/u]);
+  if (includesAny(text, [
+    /обещание зафиксировано/u,
+    /выполнил обещание/u,
+    /нарушил обещание/u,
+    /обещание выполнено/u,
+    /обещание нарушено/u,
+  ])) return false;
+  if (action === 'help') return includesAny(text, [/помо(?:г|ч)/u, /совместн.*помощ/u]);
   if (action === 'talk') return includesAny(text, [/разговор/u, /поговор/u, /обменялись мыслями/u]);
   if (action === 'apologize') return includesAny(text, [/примир/u, /извин/u]);
   if (action === 'work') return includesAny(text, [/завершил.*работ/u, /закончил.*дел/u, /общ.*дел/u]);
@@ -344,6 +351,7 @@ const fulfillPromise = (world: WorldState, entry: ConversationConsequence, evide
   entry.resolution = evidence.text;
   resolvePlan(world, entry, 'done', 'обещание подтверждено поступком');
   const speaker = world.heroes[entry.speakerId];
+  const speakerName = speaker?.name ?? entry.speakerId;
   entry.audienceIds.forEach((audienceId) => {
     const audience = world.heroes[audienceId];
     if (!speaker || !audience) return;
@@ -354,7 +362,7 @@ const fulfillPromise = (world: WorldState, entry: ConversationConsequence, evide
     remember(
       audience,
       `${entry.id}-${audienceId}-fulfilled`,
-      `${speaker.name} выполнил обещание: «${entry.statement}».`,
+      `Обещание выполнено: ${speaker.name} — «${entry.statement}»`,
       world.tick,
       Math.min(100, entry.strength + 12),
       54,
@@ -366,7 +374,7 @@ const fulfillPromise = (world: WorldState, entry: ConversationConsequence, evide
     speaker.emotions.guilt = clamp(speaker.emotions.guilt - 4);
     speaker.emotions.joy = clamp(speaker.emotions.joy + 3);
   }
-  pushJournal(world, `${speaker?.name ?? entry.speakerId} выполнил обещание: «${entry.statement}».`, [entry.speakerId, ...entry.audienceIds], 'social');
+  pushJournal(world, `Обещание выполнено: ${speakerName} — «${entry.statement}»`, [entry.speakerId, ...entry.audienceIds], 'social');
 };
 
 const apologyPlan = (world: WorldState, entry: ConversationConsequence): void => {
@@ -399,6 +407,7 @@ const breakPromise = (world: WorldState, entry: ConversationConsequence): void =
   entry.resolution = 'Срок прошёл, но подтверждающего поступка не произошло.';
   resolvePlan(world, entry, 'skipped', 'срок обещания прошёл');
   const speaker = world.heroes[entry.speakerId];
+  const speakerName = speaker?.name ?? entry.speakerId;
   entry.audienceIds.forEach((audienceId) => {
     const audience = world.heroes[audienceId];
     if (!speaker || !audience) return;
@@ -409,7 +418,7 @@ const breakPromise = (world: WorldState, entry: ConversationConsequence): void =
     remember(
       audience,
       `${entry.id}-${audienceId}-broken`,
-      `${speaker.name} нарушил обещание: «${entry.statement}».`,
+      `Обещание нарушено: ${speaker.name} — «${entry.statement}»`,
       world.tick,
       Math.min(100, entry.strength + 20),
       -72,
@@ -422,7 +431,7 @@ const breakPromise = (world: WorldState, entry: ConversationConsequence): void =
     speaker.emotions.shame = clamp(speaker.emotions.shame + 4);
   }
   apologyPlan(world, entry);
-  pushJournal(world, `${speaker?.name ?? entry.speakerId} нарушил обещание: «${entry.statement}».`, [entry.speakerId, ...entry.audienceIds], 'social');
+  pushJournal(world, `Обещание нарушено: ${speakerName} — «${entry.statement}»`, [entry.speakerId, ...entry.audienceIds], 'social');
 };
 
 export const advanceConversationConsequences = (world: WorldState): void => {
@@ -434,7 +443,7 @@ export const advanceConversationConsequences = (world: WorldState): void => {
   unprocessedJournal.forEach((journalEntry) => {
     state.processedJournalIds.push(journalEntry.id);
     state.entries
-      .filter((entry) => entry.status === 'active' && entry.actionHint && journalEntry.tick >= entry.createdAt)
+      .filter((entry) => entry.status === 'active' && entry.actionHint && journalEntry.tick > entry.createdAt)
       .forEach((entry) => {
         const involvesSpeaker = journalEntry.heroIds.includes(entry.speakerId);
         const involvesTarget = !entry.targetId || journalEntry.heroIds.includes(entry.targetId);
