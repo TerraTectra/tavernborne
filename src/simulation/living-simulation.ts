@@ -12,6 +12,7 @@ import {
   captureCommitmentNegotiationRequests,
 } from './commitment-negotiation';
 import { prepareCommitmentReasoning } from './commitment-reasoning';
+import { detachCommitmentState } from './commitment-state-detach';
 import { advanceConversationConsequences } from './conversation-consequences';
 import { continueConversation } from './conversation-continuity';
 import { performDialogue } from './dialogue-performance';
@@ -45,6 +46,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
   let world = state;
   for (let step = 0; step < steps; step += 1) {
     const prepared = cloneWorld(world, world.tick);
+    detachCommitmentState(prepared);
     const previousActions: BodyActionMap = Object.fromEntries(
       Object.values(prepared.heroes).map((hero) => [
         hero.id,
