@@ -127,10 +127,30 @@ async function sanitizeReferencedTextures(modelFile, json) {
   return count;
 }
 
-async function writeModelAliases(modelFile) {
-  const modelDir = path.dirname(modelFile);
+function aliasDirectories(files) {
+  const directories = new Set([
+    outputRoot,
+    path.join(outputRoot, 'Textures'),
+    path.join(outputRoot, 'textures'),
+    path.join(outputRoot, 'models'),
+    path.join(outputRoot, 'characters'),
+  ]);
+
+  for (const file of files) {
+    let directory = path.dirname(file);
+    while (directory === outputRoot || directory.startsWith(`${outputRoot}${path.sep}`)) {
+      directories.add(directory);
+      if (directory === outputRoot) break;
+      directory = path.dirname(directory);
+    }
+  }
+  return [...directories];
+}
+
+async function writeAliases(directory) {
+  ensureInsideOutput(directory, directory);
   for (const [name, encoded] of fallbackFiles) {
-    await writeFallback(path.join(modelDir, name), encoded);
+    await writeFallback(path.join(directory, name), encoded);
   }
   return fallbackFiles.length;
 }
@@ -158,10 +178,13 @@ async function main() {
       const bytes = await readFile(file);
       referenced += await sanitizeReferencedTextures(file, readGlbJson(bytes, file));
     }
-    aliases += await writeModelAliases(file);
   }
 
-  console.log(`[quaternius] Sanitized ${overwritten} copied texture file(s), ${referenced} glTF/GLB texture reference(s), and ${aliases} model-local alias file(s) for Chromium.`);
+  for (const directory of aliasDirectories(files)) {
+    aliases += await writeAliases(directory);
+  }
+
+  console.log(`[quaternius] Sanitized ${overwritten} copied texture file(s), ${referenced} glTF/GLB texture reference(s), and ${aliases} directory alias file(s) for Chromium.`);
 }
 
 main().catch((error) => {
