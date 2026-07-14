@@ -1,0 +1,49 @@
+name: Verify public body affinity and motor memory
+
+on:
+  pull_request:
+    branches:
+      - verify-base/body-affinity-public
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - name: Checkout merged code
+        uses: actions/checkout@v4
+        with:
+          ref: f7348f5ae4675d7c962a24f031a1acbb2fa2678c
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Verify merged public deployment
+        run: |
+          for attempt in {1..8}; do
+            echo "Public verification attempt $attempt"
+            if TEST_URL=https://terratectra.github.io/tavernborne/ node scripts/body-affinity-motor-memory-smoke.mjs; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 8 ]; then
+              sleep 30
+            fi
+          done
+          exit 1
+
+      - name: Upload public diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-body-affinity-diagnostics
+          path: |
+            body-affinity-motor-diagnostics.json
+            body-affinity-*.png
+          if-no-files-found: ignore
