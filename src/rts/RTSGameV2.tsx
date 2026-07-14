@@ -22,6 +22,7 @@ import {
 import { CampZone, zones } from './CampZone';
 import { RTSActor } from './RTSActor';
 import { useRealtimeActors } from './realtime';
+import { realtimeIntervalMs, realtimeRateLabel } from './time-scale';
 
 const emotionLabels: Record<EmotionId, string> = {
   joy: 'радость', sadness: 'грусть', anxiety: 'тревога', anger: 'гнев', irritation: 'раздражение',
@@ -152,7 +153,7 @@ export function RTSGameV2() {
     if (!running) return undefined;
     const interval = window.setInterval(() => {
       setWorld((current) => advanceSimulation(current, 1));
-    }, 5200 / speedMultiplier);
+    }, realtimeIntervalMs(speedMultiplier));
     return () => window.clearInterval(interval);
   }, [running, speedMultiplier]);
 
@@ -224,6 +225,7 @@ export function RTSGameV2() {
               <h1 className="text-xl font-semibold text-white">Живая кибитка</h1>
               <span className="font-mono text-xs text-slate-500">день {dayNumber(world.tick)} · {formatHour(hourNumber(world.tick))}</span>
               <span className="rounded bg-violet-300/10 px-2 py-1 font-mono text-[10px] text-violet-200" data-testid="world-seed">seed: {world.seed}</span>
+              <span className="rounded bg-sky-300/10 px-2 py-1 font-mono text-[10px] text-sky-200" data-testid="time-scale" data-realtime-ms={realtimeIntervalMs(speedMultiplier)}>{realtimeRateLabel(speedMultiplier)}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -231,7 +233,7 @@ export function RTSGameV2() {
             <button type="button" onClick={() => setWorld((current) => advanceSimulation(current, 24))} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs hover:bg-white/10">Прожить сутки</button>
             <button type="button" onClick={() => setWorld((current) => advanceSimulation(current, 168))} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs hover:bg-white/10">Прожить 7 дней</button>
             <button type="button" onClick={() => setRunning((value) => !value)} className={`rounded-lg border px-4 py-2 text-xs font-semibold ${running ? 'border-rose-300/30 bg-rose-300/10 text-rose-100' : 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'}`}>{running ? 'Пауза' : 'Запустить'}</button>
-            <button type="button" onClick={() => setSpeedMultiplier((value) => value === 1 ? 2 : value === 2 ? 4 : 1)} className="rounded-lg border border-amber-300/20 bg-amber-300/5 px-3 py-2 font-mono text-xs text-amber-100">x{speedMultiplier}</button>
+            <button type="button" title={realtimeRateLabel(speedMultiplier)} onClick={() => setSpeedMultiplier((value) => value === 1 ? 2 : value === 2 ? 4 : 1)} className="rounded-lg border border-amber-300/20 bg-amber-300/5 px-3 py-2 font-mono text-xs text-amber-100">x{speedMultiplier}</button>
           </div>
         </header>
 

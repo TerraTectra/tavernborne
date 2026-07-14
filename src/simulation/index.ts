@@ -11,6 +11,7 @@ export * from './conversation-continuity';
 export * from './conversation-consequences';
 export * from './commitment-reasoning';
 export * from './commitment-negotiation';
+export * from './natural-conversation';
 export * from './dungeon-exploration';
 export * from './physical-body';
 export { advanceLivingSimulation as advanceSimulation, visualDirectiveForHero } from './living-simulation';

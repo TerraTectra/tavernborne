@@ -128,7 +128,7 @@ const buildPlan = (hero: Hero, world: WorldState, day: number, expedition?: Expe
   } else {
     plan.push(
       block(hero, day, 8, 12, primary, actionLabels[primary], 'personal', { targetId: primary === 'help' || primary === 'talk' ? targetId : undefined }),
-      block(hero, day, 12, 13, hero.traits.kindness > 65 ? 'help' : 'talk', hero.traits.kindness > 65 ? 'Помочь по дому' : 'Поговорить у очага', 'group', { targetId, groupId: `midday-${day}` }),
+      block(hero, day, 12, 13, hero.traits.kindness > 65 ? 'help' : 'talk', hero.traits.kindness > 65 ? 'Помочь по дому' : 'Посидеть у очага', 'group', { targetId, groupId: `midday-${day}` }),
       block(hero, day, world.routine.lunchHour, world.routine.lunchHour + 1, 'eat', 'Общий обед', 'group', { groupId: `lunch-${day}` }),
       block(hero, day, 14, 18, secondary, actionLabels[secondary], 'personal', { targetId: secondary === 'help' || secondary === 'talk' ? targetId : undefined }),
       block(hero, day, 18, 19, 'talk', 'Время с семьёй', 'group', { targetId, groupId: `family-${day}` }),

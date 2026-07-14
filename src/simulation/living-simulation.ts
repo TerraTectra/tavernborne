@@ -20,6 +20,10 @@ import { performEmotion } from './emotional-performance';
 import { cloneWorld } from './internal';
 import { advanceLifeScenes, lifeDirectiveForHero, prepareLifeScenes } from './life-scenes';
 import type { ActionId, JournalEntry, WorldState } from './model';
+import {
+  normalizeNaturalConversationWorld,
+  simplifyCasualDialogueDirective,
+} from './natural-conversation';
 import { advancePhysicalBodies, type BodyActionMap } from './physical-body';
 import { refineChoreographyDirective } from './refine-social-choreography';
 import { performRelationship } from './relationship-performance';
@@ -55,7 +59,9 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
     );
     releaseCommitmentNegotiationCooldowns(prepared);
     sanitizeCommitmentNegotiationDialogue(prepared);
+    normalizeNaturalConversationWorld(prepared);
     prepareLifeScenes(prepared, prepared.tick + 1);
+    normalizeNaturalConversationWorld(prepared);
     advanceDueConversationConsequences(prepared);
     advanceCommitmentNegotiations(prepared);
     sanitizeCommitmentNegotiationDialogue(prepared);
@@ -65,8 +71,10 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
     captureCommitmentNegotiationRequests(prepared);
     restorePromisesWithImminentEvidence(prepared);
     world = advanceExpeditionVisualSimulation(prepared, 1);
+    normalizeNaturalConversationWorld(world);
     advancePhysicalBodies(world, 1, previousActions);
     advanceLifeScenes(world);
+    normalizeNaturalConversationWorld(world);
     advanceDueConversationConsequences(world);
   }
   return world;
@@ -79,5 +87,6 @@ export const visualDirectiveForHero = (world: WorldState, heroId: string) => {
   const emotional = performEmotion(world, heroId, refined);
   const relational = performRelationship(world, heroId, emotional);
   const dialogued = performDialogue(world, heroId, relational);
-  return continueConversation(world, heroId, dialogued);
+  const continued = continueConversation(world, heroId, dialogued);
+  return simplifyCasualDialogueDirective(world, heroId, continued);
 };
