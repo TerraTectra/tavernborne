@@ -89,8 +89,10 @@ const configureTraining = async () => {
 };
 
 const trainBlock = async (hours) => {
-  await configureTraining();
-  for (let index = 0; index < hours; index += 1) await advanceHour();
+  for (let index = 0; index < hours; index += 1) {
+    await configureTraining();
+    await advanceHour();
+  }
 };
 
 const motorSnapshot = (world, id) => {
