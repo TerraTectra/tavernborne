@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check browser smoke syntax
+        run: node --check scripts/procedural-motion-foundation-smoke.mjs
+
       - name: Build application and assets
         run: npm run build
 
@@ -46,7 +49,12 @@ jobs:
           exit 1
 
       - name: Test joint trajectories, contacts, balance, and recovery
-        run: node scripts/procedural-motion-foundation-smoke.mjs
+        run: |
+          set +e
+          node scripts/procedural-motion-foundation-smoke.mjs > procedural-motion-test.log 2>&1
+          status=$?
+          cat procedural-motion-test.log
+          exit $status
 
       - name: Upload diagnostics
         if: always()
@@ -55,6 +63,7 @@ jobs:
           name: procedural-motion-foundation-diagnostics
           path: |
             procedural-motion-diagnostics.json
+            procedural-motion-test.log
             procedural-motion-*.png
             /tmp/tavernborne-procedural-motion-preview.log
           if-no-files-found: ignore
