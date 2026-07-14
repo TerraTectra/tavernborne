@@ -156,13 +156,13 @@ async function writeAliases(directory) {
 }
 
 async function main() {
-  const files = await walk(outputRoot);
-  const modelFiles = files.filter((file) => ['.gltf', '.glb'].includes(path.extname(file).toLowerCase()));
+  const initialFiles = await walk(outputRoot);
+  const modelFiles = initialFiles.filter((file) => ['.gltf', '.glb'].includes(path.extname(file).toLowerCase()));
   let overwritten = 0;
   let referenced = 0;
   let aliases = 0;
 
-  for (const file of files) {
+  for (const file of initialFiles) {
     const encoded = fallbacks.get(path.basename(file).toLowerCase());
     if (!encoded) continue;
     await writeFallback(file, encoded);
@@ -180,7 +180,11 @@ async function main() {
     }
   }
 
-  for (const directory of aliasDirectories(files)) {
+  // Referenced texture repair can create directories that did not exist during the first walk.
+  // Rescan before writing aliases so every newly materialized model/texture directory receives
+  // the exact-case fallback names expected by GLTFLoader and by Vite's static asset copier.
+  const finalFiles = await walk(outputRoot);
+  for (const directory of aliasDirectories(finalFiles)) {
     aliases += await writeAliases(directory);
   }
 
