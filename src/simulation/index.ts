@@ -15,6 +15,7 @@ export * from './natural-conversation';
 export * from './dungeon-exploration';
 export * from './physical-body';
 export * from './motor-learning';
+export * from './procedural-motion';
 export { advanceLivingSimulation as advanceSimulation, visualDirectiveForHero } from './living-simulation';
 export * from './seed';
 export * from './social';
