@@ -1,0 +1,46 @@
+name: Verify public procedural motion foundation
+
+on:
+  pull_request:
+    branches: [verify-base/procedural-motion-public]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout merged code
+        uses: actions/checkout@v4
+        with:
+          ref: eee459ac5e11de19e6f2000abe8add46bdddf89f
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Wait for GitHub Pages
+        run: sleep 45
+
+      - name: Verify merged public deployment
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: node scripts/procedural-motion-foundation-smoke.mjs
+
+      - name: Upload public diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-procedural-motion-diagnostics
+          path: |
+            procedural-motion-diagnostics.json
+            procedural-motion-*.png
+          if-no-files-found: ignore
