@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { SimulationLab } from './lab/SimulationLab';
+import { CampOverlayDock } from './rts/CampOverlayDock';
 import { DungeonExplorationOverlay } from './rts/DungeonExplorationOverlay';
-import { LeadershipOverlay } from './rts/LeadershipOverlay';
-import { LifeSceneOverlay } from './rts/LifeSceneOverlay';
-import { PhysicalBodyOverlay } from './rts/PhysicalBodyOverlay';
 import { RTSGameV2 } from './rts/RTSGameV2';
-import { VisualSceneOverlay } from './rts/VisualSceneOverlay';
 import './rts/rts-additions.css';
 import { VillageHub3D } from './scenes/village3d/VillageHub3D';
 import { CampWorld3DOverlay } from './three/CampWorld3DOverlay';
+import './three/world3d-fixes.css';
 
 type ViewMode = 'camp' | 'simulation' | 'village';
 
@@ -52,10 +50,7 @@ export default function TavernbornePreview() {
           <RTSGameV2 />
           <CampWorld3DOverlay />
           <DungeonExplorationOverlay />
-          <LifeSceneOverlay />
-          <VisualSceneOverlay />
-          <LeadershipOverlay />
-          <PhysicalBodyOverlay />
+          <CampOverlayDock />
         </>
       )}
       {viewMode === 'simulation' && <SimulationLab />}
