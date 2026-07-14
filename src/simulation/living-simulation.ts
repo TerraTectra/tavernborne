@@ -1,4 +1,8 @@
 import {
+  holdResolvedCommitmentNegotiations,
+  releaseCommitmentNegotiationCooldowns,
+} from './commitment-negotiation-guard';
+import {
   advanceCommitmentNegotiations,
   captureCommitmentNegotiationRequests,
 } from './commitment-negotiation';
@@ -42,9 +46,11 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
         hero.currentActivity?.actionId as ActionId | undefined,
       ]),
     );
+    releaseCommitmentNegotiationCooldowns(prepared);
     prepareLifeScenes(prepared, prepared.tick + 1);
     advanceDueConversationConsequences(prepared);
     advanceCommitmentNegotiations(prepared);
+    holdResolvedCommitmentNegotiations(prepared);
     prepareCommitmentReasoning(prepared);
     captureCommitmentNegotiationRequests(prepared);
     world = advanceExpeditionVisualSimulation(prepared, 1);
