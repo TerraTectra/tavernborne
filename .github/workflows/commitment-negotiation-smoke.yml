@@ -11,7 +11,7 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 32
 
     steps:
       - name: Checkout
@@ -46,8 +46,11 @@ jobs:
           cat commitment-negotiation-preview.log
           exit 1
 
-      - name: Test Commitment Negotiation v1 in Chromium
+      - name: Test Commitment Negotiation outcomes in Chromium
         run: node scripts/commitment-negotiation-smoke.mjs
+
+      - name: Test negotiation dialogue loop protection
+        run: node scripts/commitment-negotiation-loop-smoke.mjs
 
       - name: Upload commitment negotiation diagnostics
         if: always()
@@ -60,5 +63,8 @@ jobs:
             commitment-negotiation-countered.png
             commitment-negotiation-refused.png
             commitment-negotiation-final.png
+            commitment-negotiation-loop-diagnostics.json
+            commitment-negotiation-loop.png
+            commitment-negotiation-loop-final.png
             commitment-negotiation-preview.log
           if-no-files-found: ignore
