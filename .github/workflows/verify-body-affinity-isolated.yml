@@ -1,0 +1,57 @@
+name: Verify body affinity and motor memory in isolation
+
+on:
+  pull_request:
+    branches:
+      - verify-base/body-affinity-isolated
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - name: Checkout final feature head
+        uses: actions/checkout@v4
+        with:
+          ref: 6630c63c41b5a98e35ba66982a723b53a4e0354c
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/tavernborne-preview.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tavernborne-preview.log
+          exit 1
+
+      - name: Test final body affinity and motor memory behavior
+        run: node scripts/body-affinity-motor-memory-smoke.mjs
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-body-affinity-diagnostics
+          path: |
+            body-affinity-motor-diagnostics.json
+            body-affinity-*.png
+          if-no-files-found: ignore
