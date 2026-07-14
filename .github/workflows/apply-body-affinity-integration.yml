@@ -1,0 +1,28 @@
+name: Apply body affinity integration
+
+on:
+  push:
+    branches:
+      - agent/body-affinity-motor-memory-v1
+    paths:
+      - scripts/apply-body-affinity-integration.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/body-affinity-motor-memory-v1
+          fetch-depth: 0
+      - run: node scripts/apply-body-affinity-integration.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/simulation/physical-body.ts src/simulation/seed.ts src/simulation/index.ts src/simulation/motor-learning.ts
+          git commit -m "Integrate body affinity and motor memory"
+          git push origin HEAD:agent/body-affinity-motor-memory-v1
