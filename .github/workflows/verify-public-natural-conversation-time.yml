@@ -1,0 +1,55 @@
+name: Verify public natural conversations and realtime scale
+
+on:
+  pull_request:
+    branches:
+      - verify-base/natural-conversation-time-public
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout merged code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Verify merged public deployment
+        env:
+          TEST_URL: https://terratectra.github.io/tavernborne/
+        run: |
+          for attempt in {1..8}; do
+            echo "Public verification attempt ${attempt}/8"
+            if node scripts/natural-conversation-time-smoke.mjs; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 8 ]; then
+              sleep 45
+            fi
+          done
+          exit 1
+
+      - name: Upload public verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-natural-conversation-time-verification
+          path: |
+            natural-conversation-time-diagnostics.json
+            natural-conversation-*.png
+            natural-conversation-time-final.png
+          if-no-files-found: ignore
