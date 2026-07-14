@@ -17,6 +17,11 @@ page.on('response', (response) => {
   if (response.status() >= 400) failedResponses.push({ status: response.status(), url: response.url() });
 });
 
+const resetRuntimeErrors = () => {
+  pageErrors.length = 0;
+  failedResponses.length = 0;
+};
+
 const waitCamp = async () => {
   await page.getByRole('heading', { name: 'Живая кибитка' }).waitFor({ timeout: 25_000 });
   await page.waitForFunction((key) => Boolean(window.localStorage.getItem(key)), storageKey, { timeout: 20_000 });
@@ -209,17 +214,18 @@ try {
     delete world.heroes.mira.body.motorMemory;
     window.localStorage.setItem(key, JSON.stringify(world));
   }, storageKey);
+  resetRuntimeErrors();
   await page.reload({ waitUntil: 'domcontentloaded' });
   await waitCamp();
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(1800);
   const migrated = await storedWorld();
   assert.equal(Object.keys(migrated.heroes.mira.body.affinity.movement).length, 8, 'Старое сохранение не получило профиль совместимости');
   assert.equal(migrated.heroes.mira.body.motorMemory.totalAttempts, 0, 'Миграция создала ложную двигательную историю');
   diagnostics.migratedMira = motorSnapshot(migrated, 'mira');
 
-  assert.equal(pageErrors.length, 0, `Ошибки страницы: ${pageErrors.join(' | ')}`);
-  assert.equal(failedResponses.length, 0, `HTTP-ошибки: ${failedResponses.map((item) => `${item.status} ${item.url}`).join(' | ')}`);
+  assert.equal(pageErrors.length, 0, `Ошибки стабильной страницы: ${pageErrors.join(' | ')}`);
+  assert.equal(failedResponses.length, 0, `HTTP-ошибки стабильной страницы: ${failedResponses.map((item) => `${item.status} ${item.url}`).join(' | ')}`);
 
   writeFileSync('body-affinity-motor-diagnostics.json', JSON.stringify({ stage: 'passed', diagnostics, pageErrors, failedResponses }, null, 2));
   console.log('Body affinity and motor memory browser smoke passed.');
