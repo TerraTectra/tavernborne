@@ -72,3 +72,5 @@ replaceExact(
   "              maxWidth: dialogueMaxWidth,\n              lineHeight: dialogueLineHeight,",
   "              width: dialogueWidth,\n              maxWidth: dialogueMaxWidth,\n              lineHeight: dialogueLineHeight,",
 );
+
+// This file is intentionally temporary and will be removed after the source patch is committed.
