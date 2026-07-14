@@ -40,6 +40,7 @@ export interface AssetHeroBody3DProps {
     facing?: RuntimeActor['facing'];
     position?: { x: number; y: number };
     bubble?: string;
+    sceneId?: string;
     roleLabel?: string;
     reaction?: string;
     actionId?: RuntimeActor['actionId'];
