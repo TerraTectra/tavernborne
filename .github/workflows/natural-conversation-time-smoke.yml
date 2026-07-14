@@ -1,0 +1,62 @@
+name: Natural conversation and realtime scale smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > natural-conversation-time-preview.log 2>&1 &
+          echo $! > natural-conversation-time-preview.pid
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat natural-conversation-time-preview.log
+          exit 1
+
+      - name: Test natural conversations and realtime scale in Chromium
+        run: node scripts/natural-conversation-time-smoke.mjs
+
+      - name: Upload natural conversation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: natural-conversation-time-diagnostics
+          path: |
+            natural-conversation-time-diagnostics.json
+            natural-conversation-*.png
+            natural-conversation-time-final.png
+            natural-conversation-time-preview.log
+          if-no-files-found: ignore
