@@ -353,10 +353,10 @@ export const buildProceduralMotion = (world: WorldState, hero: Hero): Procedural
     progress,
   ));
   const isActive = actionId === 'train' || actionId === 'dungeon' || actionId === 'work' || actionId === 'help';
-  const frameIndex = isActive ? Math.abs(world.tick + hero.id.length) % trajectory.length : 0;
+  const frameIndex = isActive ? Math.abs(world.tick) % trajectory.length : 0;
   let current = trajectory[frameIndex];
-  const severe = current.balanceMargin < -0.1 || current.fallRisk >= 82;
-  const unstable = isActive && (current.balanceMargin < 0 || current.stability < 24 || current.fallRisk >= 66);
+  const severe = current.balanceMargin < -0.18 && current.fallRisk >= 90;
+  const unstable = isActive && (current.balanceMargin < -0.02 || current.stability < 22 || current.fallRisk >= 72);
   if (unstable) {
     current = {
       ...current,
