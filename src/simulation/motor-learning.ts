@@ -531,7 +531,7 @@ const updateSchools = (world: WorldState, hero: Hero): void => {
         valence: 34,
         participants: [],
         tags: ['body', 'training', 'motor-school'],
-        sourceEventType: 'training',
+        sourceEventType: 'action',
       });
     } else {
       school.updatedAt = world.tick;

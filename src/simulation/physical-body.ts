@@ -1,4 +1,15 @@
 import type { ActionId, Hero, WorldState } from './model';
+import {
+  advanceMotorLearning,
+  bestMotorPatterns,
+  cloneBodyAffinity,
+  cloneMotorMemory,
+  createBodyAffinity,
+  createMotorMemory,
+  hydrateBodyAffinity,
+  hydrateMotorMemory,
+  topMovementAffinities,
+} from './motor-learning';
 import type {
   AnthropometryState,
   BodyPoseState,
@@ -128,26 +139,28 @@ export const createPhysicalBody = (profile: PhysicalBodyProfile, tick = 0): Phys
   const coordination = clamp(48 * (profile.coordinationBias ?? 1), 20, 90);
   const flexibility = clamp(52 * (profile.flexibilityBias ?? 1), 20, 90);
   const boneDensity = clamp(62 * (profile.boneDensityBias ?? 1), 35, 95);
+  const tissues = {
+    muscleTone: 52,
+    muscleFatigue: 8,
+    muscleCondition: 68,
+    tendonCondition: 72,
+    boneDensity,
+    flexibility,
+    hydration: 76,
+  };
+  const nervous = {
+    coordination,
+    balance: clamp(coordination + 4),
+    proprioception: clamp(coordination + 2),
+    motorLearning: clamp(45 + coordination * 0.28),
+    reflexQuality: clamp(42 + coordination * 0.32),
+    reactionTimeMs: round(285 - coordination * 0.9, 1),
+  };
   return {
     version: 1,
     anthropometry,
-    tissues: {
-      muscleTone: 52,
-      muscleFatigue: 8,
-      muscleCondition: 68,
-      tendonCondition: 72,
-      boneDensity,
-      flexibility,
-      hydration: 76,
-    },
-    nervous: {
-      coordination,
-      balance: clamp(coordination + 4),
-      proprioception: clamp(coordination + 2),
-      motorLearning: clamp(45 + coordination * 0.28),
-      reflexQuality: clamp(42 + coordination * 0.32),
-      reactionTimeMs: round(285 - coordination * 0.9, 1),
-    },
+    tissues,
+    nervous,
     pose: {
       name: 'neutral', supportFoot: 'both', centerOfMass: { x: 0, y: 0.54 },
       stability: 76, stanceWidthCm: round(anthropometry.hipWidthCm * 1.08), facing: 'right',
@@ -159,6 +172,8 @@ export const createPhysicalBody = (profile: PhysicalBodyProfile, tick = 0): Phys
       physicalSpeedCeiling: round(62 + coordination * 0.3),
       forceTransferEfficiency: round(44 + coordination * 0.38),
     },
+    affinity: createBodyAffinity(profile, anthropometry, tissues, nervous),
+    motorMemory: createMotorMemory(),
     segments: buildSegments(anthropometry),
     joints: buildJoints(),
     lastUpdatedTick: tick,
@@ -172,6 +187,8 @@ export const clonePhysicalBody = (body: PhysicalBodyState): PhysicalBodyState =>
   nervous: { ...body.nervous },
   pose: { ...body.pose, centerOfMass: { ...body.pose.centerOfMass } },
   limits: { ...body.limits },
+  affinity: cloneBodyAffinity(body.affinity),
+  motorMemory: cloneMotorMemory(body.motorMemory),
   segments: Object.fromEntries(Object.entries(body.segments).map(([id, segment]) => [id, { ...segment }])) as PhysicalBodyState['segments'],
   joints: Object.fromEntries(Object.entries(body.joints).map(([id, value]) => [id, { ...value }])) as PhysicalBodyState['joints'],
 });
@@ -193,6 +210,8 @@ export const hydratePhysicalBody = (
       centerOfMass: { ...fallback.pose.centerOfMass, ...(saved.pose?.centerOfMass ?? {}) },
     },
     limits: { ...fallback.limits, ...(saved.limits ?? {}) },
+    affinity: hydrateBodyAffinity(saved.affinity, fallback.affinity),
+    motorMemory: hydrateMotorMemory(saved.motorMemory, fallback.motorMemory),
     segments: Object.fromEntries(segmentIds.map((id) => [id, {
       ...fallback.segments[id],
       ...(saved.segments?.[id] ?? {}),
@@ -295,6 +314,8 @@ export const advancePhysicalBodies = (
       body.nervous.motorLearning = clamp(body.nervous.motorLearning + 0.012 * (hero.traits.curiosity + hero.traits.discipline) / 100 * hours);
     }
 
+    advanceMotorLearning(world, hero, actionId, hours);
+
     body.nervous.reactionTimeMs = round(clamp(
       318 - hero.stats.dexterity * 2.25 - hero.stats.perception * 0.82
         + body.tissues.muscleFatigue * 0.72 + hero.psyche.stress * 0.2,
@@ -358,4 +379,9 @@ export const physicalBodySummary = (hero: Hero) => ({
   supportFoot: hero.body.pose.supportFoot,
   pose: hero.body.pose.name,
   painfulSegments: segmentIds.filter((id) => hero.body.segments[id].pain >= 12),
+  affinities: topMovementAffinities(hero.body, 3),
+  motorPatterns: bestMotorPatterns(hero.body, 3),
+  motorAttempts: hero.body.motorMemory.totalAttempts,
+  motorSuccesses: hero.body.motorMemory.successfulAttempts,
+  motorSchools: hero.body.motorMemory.schools,
 });

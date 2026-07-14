@@ -72,7 +72,8 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     body: createPhysicalBody({
       heightCm: 169, massKg: 63, bodyFatPercent: 22, shoulderRatio: 0.238, hipRatio: 0.182,
       legRatio: 0.52, armSpanRatio: 1.01, muscleBias: 1.03, flexibilityBias: 1.08,
-      coordinationBias: 1.06, boneDensityBias: 1.02,
+      coordinationBias: 1.06, boneDensityBias: 1.02, enduranceBias: 1.08, recoveryBias: 1.12,
+      precisionBias: 1.08, adaptabilityBias: 1.08, stabilityBias: 1.02,
     }, 6),
     condition: { health: 100, injury: 0 },
     inventory: [
@@ -97,7 +98,8 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     body: createPhysicalBody({
       heightCm: 183, massKg: 84, bodyFatPercent: 15, shoulderRatio: 0.265, hipRatio: 0.172,
       legRatio: 0.525, armSpanRatio: 1.035, muscleBias: 1.18, flexibilityBias: 0.92,
-      coordinationBias: 1.02, boneDensityBias: 1.12,
+      coordinationBias: 1.02, boneDensityBias: 1.12, powerBias: 1.18, stabilityBias: 1.15,
+      enduranceBias: 1.06, mobilityBias: 0.88, precisionBias: 0.93, adaptabilityBias: 0.92, accelerationBias: 1.03,
     }, 6),
     condition: { health: 100, injury: 0 },
     inventory: [
@@ -122,7 +124,8 @@ export const createInitialWorld = (seed = 'aster-family-001'): WorldState => {
     body: createPhysicalBody({
       heightCm: 162, massKg: 52, bodyFatPercent: 20, shoulderRatio: 0.226, hipRatio: 0.178,
       legRatio: 0.508, armSpanRatio: 0.99, muscleBias: 0.9, flexibilityBias: 1.18,
-      coordinationBias: 1.1, boneDensityBias: 0.96,
+      coordinationBias: 1.1, boneDensityBias: 0.96, mobilityBias: 1.16, precisionBias: 1.16,
+      adaptabilityBias: 1.22, recoveryBias: 1.08, accelerationBias: 1.1, powerBias: 0.78, stabilityBias: 0.88, enduranceBias: 0.94,
     }, 6),
     condition: { health: 100, injury: 0 },
     inventory: [
