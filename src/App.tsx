@@ -6,6 +6,7 @@ import { RTSGameV2 } from './rts/RTSGameV2';
 import './rts/rts-additions.css';
 import { VillageHub3D } from './scenes/village3d/VillageHub3D';
 import { CampWorld3DOverlay } from './three/CampWorld3DOverlay';
+import './three/world3d-fixes.css';
 
 type ViewMode = 'camp' | 'simulation' | 'village';
 
