@@ -52,6 +52,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
       ]),
     );
     releaseCommitmentNegotiationCooldowns(prepared);
+    sanitizeCommitmentNegotiationDialogue(prepared);
     prepareLifeScenes(prepared, prepared.tick + 1);
     advanceDueConversationConsequences(prepared);
     advanceCommitmentNegotiations(prepared);
