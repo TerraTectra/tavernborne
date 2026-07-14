@@ -1,0 +1,78 @@
+name: Verify Commitment Negotiation final head
+
+on:
+  push:
+    branches:
+      - verify/commitment-negotiation-v1-final
+  pull_request:
+    branches:
+      - agent/commitment-negotiation-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application and sanitized assets
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start preview server
+        run: |
+          npm run preview -- --host 127.0.0.1 > commitment-negotiation-final-preview.log 2>&1 &
+          echo $! > commitment-negotiation-final-preview.pid
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/tavernborne/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat commitment-negotiation-final-preview.log
+          exit 1
+
+      - name: Verify negotiation outcomes
+        run: node scripts/commitment-negotiation-smoke.mjs
+
+      - name: Verify dialogue loop protection
+        run: node scripts/commitment-negotiation-loop-smoke.mjs
+
+      - name: Verify commitment reasoning compatibility
+        run: node scripts/commitment-reasoning-smoke.mjs
+
+      - name: Verify conversation consequence compatibility
+        run: node scripts/conversation-consequences-smoke.mjs
+
+      - name: Upload final verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commitment-negotiation-final-verification
+          path: |
+            commitment-negotiation-*.json
+            commitment-negotiation-*.png
+            commitment-reasoning-diagnostics.json
+            commitment-reasoning-*.png
+            conversation-consequences-diagnostics.json
+            conversation-consequences-*.png
+            commitment-negotiation-final-preview.log
+          if-no-files-found: ignore
