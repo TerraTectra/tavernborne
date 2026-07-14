@@ -25,6 +25,7 @@ import {
   simplifyCasualDialogueDirective,
 } from './natural-conversation';
 import { advancePhysicalBodies, type BodyActionMap } from './physical-body';
+import { synchronizeProceduralMotionWorld } from './procedural-motion';
 import { refineChoreographyDirective } from './refine-social-choreography';
 import { performRelationship } from './relationship-performance';
 import { choreographDirective } from './social-choreography';
@@ -73,6 +74,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
     world = advanceExpeditionVisualSimulation(prepared, 1);
     normalizeNaturalConversationWorld(world);
     advancePhysicalBodies(world, 1, previousActions);
+    synchronizeProceduralMotionWorld(world);
     advanceLifeScenes(world);
     normalizeNaturalConversationWorld(world);
     advanceDueConversationConsequences(world);
