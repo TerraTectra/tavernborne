@@ -76,12 +76,12 @@ const initialPositions: Record<string, Point> = {
 
 const fixedDestinations: Record<Exclude<ActionId, 'talk' | 'help' | 'apologize'>, Point[]> = {
   eat: [{ x: 45, y: 24 }, { x: 49, y: 23 }, { x: 53, y: 25 }],
-  sleep: [{ x: 77, y: 19 }, { x: 84, y: 19 }, { x: 89, y: 19 }],
+  sleep: [{ x: 72.7, y: 20.2 }, { x: 78.3, y: 21.8 }, { x: 84, y: 20.2 }],
   train: [{ x: 17, y: 54 }, { x: 22, y: 58 }, { x: 14, y: 61 }],
   read: [{ x: 46, y: 55 }, { x: 51, y: 53 }, { x: 55, y: 57 }],
   seekSolitude: [{ x: 17, y: 84 }, { x: 23, y: 85 }, { x: 28, y: 82 }],
   work: [{ x: 77, y: 55 }, { x: 84, y: 58 }, { x: 89, y: 53 }],
-  recover: [{ x: 77, y: 22 }, { x: 84, y: 22 }, { x: 89, y: 22 }],
+  recover: [{ x: 72.7, y: 20.2 }, { x: 78.3, y: 21.8 }, { x: 84, y: 20.2 }],
   dungeon: [{ x: 78, y: 85 }, { x: 84, y: 85 }, { x: 90, y: 85 }],
 };
 
@@ -100,6 +100,14 @@ const bubbleLabels: Record<ActionId, string> = {
 };
 
 const socialActions = new Set<ActionId>(['talk', 'help', 'apologize']);
+const actionMovementRate = (actionId: ActionId | undefined): number => {
+  if (actionId === 'recover' || actionId === 'sleep') return 0.62;
+  if (actionId === 'seekSolitude' || actionId === 'read') return 0.78;
+  if (actionId === 'dungeon') return 0.84;
+  if (actionId === 'work' || actionId === 'help') return 0.9;
+  if (actionId === 'train') return 1.06;
+  return 1;
+};
 const distance = (left: Point, right: Point) => Math.hypot(right.x - left.x, right.y - left.y);
 
 const routeFor = (from: Point, destination: Point): Point[] => {
@@ -342,7 +350,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
 
             actor.phase = 'moving';
             actor.facing = facingFor(actor.position, waypoint);
-            const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current) * (actor.movementRate ?? 1);
+            const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current) * (actor.movementRate ?? 1) * actionMovementRate(directive.actionId);
             const step = Math.min(remaining, unitsPerSecond * dt);
             actor.position.x += ((waypoint.x - actor.position.x) / remaining) * step;
             actor.position.y += ((waypoint.y - actor.position.y) / remaining) * step;
@@ -408,7 +416,7 @@ export const useRealtimeActors = (world: WorldState, speedMultiplier: number) =>
 
           actor.phase = 'moving';
           actor.facing = facingFor(actor.position, waypoint);
-          const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current) * (actor.movementRate ?? 1);
+          const unitsPerSecond = 8.5 * Math.max(0.7, speedRef.current) * (actor.movementRate ?? 1) * actionMovementRate(action.actionId);
           const step = Math.min(remaining, unitsPerSecond * dt);
           actor.position.x += ((waypoint.x - actor.position.x) / remaining) * step;
           actor.position.y += ((waypoint.y - actor.position.y) / remaining) * step;

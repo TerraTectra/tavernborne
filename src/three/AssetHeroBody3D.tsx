@@ -180,7 +180,8 @@ function chooseClip(names: string[], intent: AnimationIntent): string | undefine
   return names[0];
 }
 
-function modelPoseFor(posture: InteractionPosture): { position: [number, number, number]; rotation: [number, number, number] } {
+function modelPoseFor(posture: InteractionPosture, intent: AnimationIntent): { position: [number, number, number]; rotation: [number, number, number] } {
+  if (intent === 'sleep') return { position: [0, 0.46, -0.54], rotation: [-Math.PI / 2, 0, 0] };
   if (posture === 'seated') return { position: [0, -0.13, -0.04], rotation: [0.04, 0, 0] };
   if (posture === 'kneeling') return { position: [0, -0.1, 0.02], rotation: [0.1, 0, 0] };
   if (posture === 'resting') return { position: [0, -0.16, -0.08], rotation: [0.08, 0, 0.03] };
@@ -278,18 +279,20 @@ function RiggedHeroBody3D({
   const interactionKind = interactionKindForActor(actor);
   const posture = interactionPostureForActor(actor);
   const interactionLabel = interactionLabelForActor(actor);
-  const modelPose = modelPoseFor(posture);
+  const modelPose = modelPoseFor(posture, intent);
   const emotionalIntensity = clamp((actor.emotionalIntensity ?? 0) / 100, 0, 1);
   const emotionalRate = clamp(actor.animationRate ?? 1, 0.45, 1.35);
   const emotionalLean = (actor.bodyLean ?? 0) * emotionalIntensity;
   const emotionalTension = clamp(actor.bodyTension ?? 0, 0, 1) * emotionalIntensity;
   const emotionalSlouch = ['guilty', 'withdrawn', 'exhausted'].includes(actor.emotionalPerformance ?? '') ? emotionalIntensity * 0.055 : 0;
   const bubbleLane = clamp(actor.bubbleLane ?? 0, -2, 2);
-  const bubbleX = bubbleLane * 0.4;
-  const bubbleY = (compact ? 3.03 : 3.42) + Math.abs(bubbleLane) * 0.1;
+  const bubbleX = bubbleLane * 1.12;
+  const bubbleY = (compact ? 3.03 : 3.42) + Math.abs(bubbleLane) * 0.22;
   const labelX = bubbleLane * 0.08;
   const dialogueColor = actor.dialogueColor ?? actor.expressionColor ?? '#cbd5e1';
-  const dialogueMaxWidth = actor.dialogueLength === 'expanded' ? 340 : actor.dialogueLength === 'terse' ? 220 : 280;
+  const dialogueMaxWidth = actor.dialogueLength === 'expanded' ? 300 : actor.dialogueLength === 'terse' ? 210 : 260;
+  const dialogueWidth = actor.dialogueLength === 'expanded' ? 280 : actor.dialogueLength === 'terse' ? 190 : 240;
+  const showDialogueBubble = Boolean(actor.bubble) && actor.phase !== 'moving' && (!actor.sceneId || actor.dialogueIsSpeaker !== false);
   const dialogueLineHeight = actor.dialogueCadence === 'halting' ? 1.5 : actor.dialogueCadence === 'clipped' ? 1.28 : 1.38;
   const equipmentDrawn = actor.actionId === 'train'
     || actor.actionId === 'dungeon'
@@ -400,6 +403,7 @@ function RiggedHeroBody3D({
           data-dialogue-memory-id={actor.dialogueMemoryId ?? 'none'}
           data-dialogue-partner-id={actor.dialoguePartnerId ?? 'none'}
           data-dialogue-reason={actor.dialogueReason ?? ''}
+          data-body-pose={hero.body.pose.name}
           data-facing={actor.facing ?? 'down'}
           data-world-x={worldPosition ? worldPosition.x.toFixed(2) : 'na'}
           data-world-y={worldPosition ? worldPosition.y.toFixed(2) : 'na'}
@@ -424,8 +428,8 @@ function RiggedHeroBody3D({
           </span>
         </Html>
       )}
-      {actor.bubble && actor.phase !== 'moving' && (
-        <Html center position={[bubbleX, bubbleY, 0]} zIndexRange={[35, 12]}>
+      {showDialogueBubble && (
+        <Html center position={[bubbleX, bubbleY, 0]} zIndexRange={[35, 12]} wrapperClass="world3d-dialogue-anchor">
           <span
             className="world3d-bubble"
             data-testid={`dialogue-bubble-${hero.id}`}
@@ -437,9 +441,11 @@ function RiggedHeroBody3D({
             data-dialogue-tone={actor.dialogueTone ?? 'none'}
             data-dialogue-word-count={actor.dialogueWordCount ?? 0}
             data-dialogue-memory-id={actor.dialogueMemoryId ?? 'none'}
+            data-dialogue-is-speaker={actor.dialogueIsSpeaker ? 'true' : 'false'}
             title={actor.dialogueReason}
             style={{
               borderColor: actor.dialogueIsSpeaker ? `${dialogueColor}aa` : showExpression ? `${expressionColor}88` : undefined,
+              width: dialogueWidth,
               maxWidth: dialogueMaxWidth,
               lineHeight: dialogueLineHeight,
               letterSpacing: actor.dialogueCadence === 'clipped' ? '0.01em' : undefined,
