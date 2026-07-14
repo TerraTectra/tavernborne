@@ -2,10 +2,7 @@ name: Calibrate procedural motion once
 
 on:
   pull_request:
-    branches: [main]
-    paths:
-      - scripts/calibrate-procedural-motion.mjs
-      - .github/workflows/calibrate-procedural-motion.yml
+    branches: [verify-base/procedural-motion-calibration]
 
 permissions:
   contents: write
