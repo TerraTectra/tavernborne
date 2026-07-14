@@ -2,6 +2,7 @@ import {
   restorePromisesWithImminentEvidence,
   suspendPromisesWithImminentEvidence,
 } from './commitment-evidence-guard';
+import { sanitizeCommitmentNegotiationDialogue } from './commitment-negotiation-dialogue-guard';
 import {
   holdResolvedCommitmentNegotiations,
   releaseCommitmentNegotiationCooldowns,
@@ -54,6 +55,7 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
     prepareLifeScenes(prepared, prepared.tick + 1);
     advanceDueConversationConsequences(prepared);
     advanceCommitmentNegotiations(prepared);
+    sanitizeCommitmentNegotiationDialogue(prepared);
     holdResolvedCommitmentNegotiations(prepared);
     suspendPromisesWithImminentEvidence(prepared);
     prepareCommitmentReasoning(prepared);
