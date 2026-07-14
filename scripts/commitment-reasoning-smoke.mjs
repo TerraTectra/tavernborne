@@ -62,6 +62,7 @@ const injectScenario = async (mode) => {
         handledMealKeys: [], handledTreatmentKeys: [], handledConflictDays: [],
       };
       delete candidate.commitmentReasoning;
+      delete candidate.commitmentNegotiations;
       for (const hero of Object.values(candidate.heroes)) {
         hero.currentAction = undefined;
         hero.currentActivity = undefined;
@@ -156,12 +157,17 @@ try {
   const rescheduled = await storedWorld();
   const rescheduleEntry = rescheduled.conversationConsequences.entries.find((entry) => entry.id === 'promise-reschedule');
   const rescheduleAssessment = rescheduled.commitmentReasoning?.assessments?.find((item) => item.promiseId === 'promise-reschedule');
+  const negotiation = rescheduled.commitmentNegotiations?.entries?.find((item) => item.promiseId === 'promise-reschedule');
   assert.equal(rescheduleAssessment?.decision, 'reschedule-request');
-  assert.ok(rescheduleEntry.dueTick >= 18);
+  assert.equal(rescheduleEntry.status, 'contested');
+  assert.equal(rescheduleEntry.dueTick, 14, 'Срок не должен меняться до ответа адресата');
+  assert.equal(rescheduleEntry.negotiationStatus, 'pending');
   assert.equal(rescheduleEntry.rescheduleCount, 1);
+  assert.equal(negotiation?.status, 'pending');
+  assert.ok(negotiation?.requestedDueTick >= 18);
   assert.ok(rescheduled.heroes.mira.dailyPlan.some((block) => block.label === 'Попросить перенести срок обещания'));
-  assert.ok(rescheduled.journal.some((entry) => entry.text.includes('попросить') && entry.text.includes('перенести срок')));
-  diagnostics.reschedule = { assessment: rescheduleAssessment, entry: rescheduleEntry };
+  assert.ok(rescheduled.journal.some((entry) => entry.text.includes('попросил') && entry.text.includes('перенести срок')));
+  diagnostics.reschedule = { assessment: rescheduleAssessment, entry: rescheduleEntry, negotiation };
   await page.screenshot({ path: 'commitment-reasoning-reschedule.png', fullPage: true });
 
   stage = 'deliberate-break';
