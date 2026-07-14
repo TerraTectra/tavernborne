@@ -90,7 +90,7 @@ const bubbleLabels: Record<ActionId, string> = {
   sleep: 'Отбой',
   train: 'Ещё один подход',
   read: 'Нужно разобраться',
-  talk: 'Надо поговорить',
+  talk: 'Как ты?',
   help: 'Я помогу',
   apologize: 'Нужно всё исправить',
   seekSolitude: 'Хочу немного тишины',
