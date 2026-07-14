@@ -1,4 +1,18 @@
+import {
+  restorePromisesWithImminentEvidence,
+  suspendPromisesWithImminentEvidence,
+} from './commitment-evidence-guard';
+import { sanitizeCommitmentNegotiationDialogue } from './commitment-negotiation-dialogue-guard';
+import {
+  holdResolvedCommitmentNegotiations,
+  releaseCommitmentNegotiationCooldowns,
+} from './commitment-negotiation-guard';
+import {
+  advanceCommitmentNegotiations,
+  captureCommitmentNegotiationRequests,
+} from './commitment-negotiation';
 import { prepareCommitmentReasoning } from './commitment-reasoning';
+import { detachCommitmentState } from './commitment-state-detach';
 import { advanceConversationConsequences } from './conversation-consequences';
 import { continueConversation } from './conversation-continuity';
 import { performDialogue } from './dialogue-performance';
@@ -32,15 +46,24 @@ export const advanceLivingSimulation = (state: WorldState, steps = 1): WorldStat
   let world = state;
   for (let step = 0; step < steps; step += 1) {
     const prepared = cloneWorld(world, world.tick);
+    detachCommitmentState(prepared);
     const previousActions: BodyActionMap = Object.fromEntries(
       Object.values(prepared.heroes).map((hero) => [
         hero.id,
         hero.currentActivity?.actionId as ActionId | undefined,
       ]),
     );
+    releaseCommitmentNegotiationCooldowns(prepared);
+    sanitizeCommitmentNegotiationDialogue(prepared);
     prepareLifeScenes(prepared, prepared.tick + 1);
     advanceDueConversationConsequences(prepared);
+    advanceCommitmentNegotiations(prepared);
+    sanitizeCommitmentNegotiationDialogue(prepared);
+    holdResolvedCommitmentNegotiations(prepared);
+    suspendPromisesWithImminentEvidence(prepared);
     prepareCommitmentReasoning(prepared);
+    captureCommitmentNegotiationRequests(prepared);
+    restorePromisesWithImminentEvidence(prepared);
     world = advanceExpeditionVisualSimulation(prepared, 1);
     advancePhysicalBodies(world, 1, previousActions);
     advanceLifeScenes(world);
