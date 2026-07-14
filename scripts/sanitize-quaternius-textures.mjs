@@ -18,27 +18,29 @@ const leaves = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPwqLD6
 const bark = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMo8NH9DwAEAgHpuvzp4wAAAABJRU5ErkJggg==';
 const roughness = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPYtGnTfwAHRgMWwm+yngAAAABJRU5ErkJggg==';
 
-const fallbacks = new Map([
-  ['t_trim_props_basecolor.png', props],
-  ['t_trim_props_normal.png', normal],
-  ['t_trim_props_orm.png', orm],
-  ['t_trim_metal_basecolor.png', metal],
-  ['t_trim_metal_normal.png', normal],
-  ['t_trim_metal_orm.png', orm],
-  ['t_trim_furniture_basecolor.png', wood],
-  ['t_trim_furniture_normal.png', normal],
-  ['t_trim_furniture_orm.png', orm],
-  ['t_trim_cloth_basecolor.png', cloth],
-  ['t_trim_cloth_normal.png', normal],
-  ['t_trim_cloth_orm.png', orm],
-  ['t_woodtrim_basecolor.png', wood],
-  ['t_woodtrim_normal.png', normal],
-  ['t_woodtrim_roughness.png', roughness],
-  ['rocks_diffuse.png', rocks],
-  ['leaves_normaltree_c.png', leaves],
-  ['bark_normaltree_normal.png', normal],
-  ['bark_normaltree.png', bark],
-]);
+const fallbackFiles = [
+  ['T_Trim_Props_BaseColor.png', props],
+  ['T_Trim_Props_Normal.png', normal],
+  ['T_Trim_Props_ORM.png', orm],
+  ['T_Trim_Metal_BaseColor.png', metal],
+  ['T_Trim_Metal_Normal.png', normal],
+  ['T_Trim_Metal_ORM.png', orm],
+  ['T_Trim_Furniture_BaseColor.png', wood],
+  ['T_Trim_Furniture_Normal.png', normal],
+  ['T_Trim_Furniture_ORM.png', orm],
+  ['T_Trim_Cloth_BaseColor.png', cloth],
+  ['T_Trim_Cloth_Normal.png', normal],
+  ['T_Trim_Cloth_ORM.png', orm],
+  ['T_WoodTrim_BaseColor.png', wood],
+  ['T_WoodTrim_Normal.png', normal],
+  ['T_WoodTrim_Roughness.png', roughness],
+  ['Rocks_Diffuse.png', rocks],
+  ['Leaves_NormalTree_C.png', leaves],
+  ['Bark_NormalTree_Normal.png', normal],
+  ['Bark_NormalTree.png', bark],
+];
+
+const fallbacks = new Map(fallbackFiles.map(([name, encoded]) => [name.toLowerCase(), encoded]));
 
 async function exists(filePath) {
   try {
@@ -125,10 +127,20 @@ async function sanitizeReferencedTextures(modelFile, json) {
   return count;
 }
 
+async function writeModelAliases(modelFile) {
+  const modelDir = path.dirname(modelFile);
+  for (const [name, encoded] of fallbackFiles) {
+    await writeFallback(path.join(modelDir, name), encoded);
+  }
+  return fallbackFiles.length;
+}
+
 async function main() {
   const files = await walk(outputRoot);
+  const modelFiles = files.filter((file) => ['.gltf', '.glb'].includes(path.extname(file).toLowerCase()));
   let overwritten = 0;
   let referenced = 0;
+  let aliases = 0;
 
   for (const file of files) {
     const encoded = fallbacks.get(path.basename(file).toLowerCase());
@@ -137,18 +149,19 @@ async function main() {
     overwritten += 1;
   }
 
-  for (const file of files) {
+  for (const file of modelFiles) {
     const extension = path.extname(file).toLowerCase();
     if (extension === '.gltf') {
       const json = JSON.parse(await readFile(file, 'utf-8'));
       referenced += await sanitizeReferencedTextures(file, json);
-    } else if (extension === '.glb') {
+    } else {
       const bytes = await readFile(file);
       referenced += await sanitizeReferencedTextures(file, readGlbJson(bytes, file));
     }
+    aliases += await writeModelAliases(file);
   }
 
-  console.log(`[quaternius] Sanitized ${overwritten} copied texture file(s) and ${referenced} glTF/GLB texture reference(s) for Chromium.`);
+  console.log(`[quaternius] Sanitized ${overwritten} copied texture file(s), ${referenced} glTF/GLB texture reference(s), and ${aliases} model-local alias file(s) for Chromium.`);
 }
 
 main().catch((error) => {
